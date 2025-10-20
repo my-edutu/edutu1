@@ -70,71 +70,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
   }, [messages]);
 
   const sendMessageToOpenRouter = async (conversation: Message[]): Promise<string> => {
-    const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-
-    if (!apiKey) {
-      throw new Error('Missing OpenRouter API key. Please set VITE_OPENROUTER_API_KEY in your environment.');
-    }
-
-    const referer = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
-
-    const systemPromptLines = [
-      'You are Edutu, an empathetic African opportunity coach who helps learners uncover scholarships, training, and career pathways.',
-      'Share practical, actionable recommendations and explain why they matter.',
-      'Keep responses concise, friendly, and focused on steps a learner can take now.',
-      'Prioritize opportunities and resources that are accessible to African students and young professionals.'
-    ];
-
-    if (user?.name || user?.age) {
-      const learnerDetails = [
-        user?.name ? `The learner is named ${user.name}.` : '',
-        user?.age ? `They are ${user.age} years old.` : ''
-      ]
-        .filter(Boolean)
-        .join(' ');
-
-      if (learnerDetails) {
-        systemPromptLines.push(learnerDetails);
-      }
-    }
-
-    const requestBody = {
-      model: 'z-ai/glm-4.6',
-      messages: [
-        { role: 'system', content: systemPromptLines.join(' ') },
-        ...conversation
-          .filter((message) => !message.isTyping && message.content.trim().length > 0)
-          .map((message) => ({
-            role: message.type === 'user' ? 'user' : 'assistant',
-            content: message.content
-          }))
-      ]
-    };
-
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-        'HTTP-Referer': referer,
-        'X-Title': 'Edutu'
-      },
-      body: JSON.stringify(requestBody)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`OpenRouter error: ${errorText || response.statusText}`);
-    }
-
-    const data = await response.json();
-    const aiMessage = data?.choices?.[0]?.message?.content;
-
-    if (!aiMessage || typeof aiMessage !== 'string') {
-      throw new Error('OpenRouter returned an unexpected response. Check the console for details.');
-    }
-
-    return aiMessage.trim();
+    // In a production environment, this should call your backend API endpoint
+    // The API key should be stored securely on the server, not in client code
+    // For now, this throws an error to prevent the build from including the API key
+    throw new Error(
+      'Chat functionality requires a backend service to securely handle API keys. ' +
+      'Please implement a backend proxy before deploying to production.'
+    );
   };
 
   const handleSend = async (overrideText?: string) => {

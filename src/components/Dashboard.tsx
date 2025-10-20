@@ -553,12 +553,12 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </header>
         {/* Greeting and Daily Motivation Section */}
-        <div className="px-6 py-3">
-          <div className={`rounded-2xl p-6 ${isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-900/90 border border-gray-700/50' : 'bg-gradient-to-br from-white to-gray-50 border border-gray-200'}`}>
-            <h1 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
+        <div className="px-6 py-2">
+          <div className={`rounded-2xl p-5 ${isDarkMode ? 'bg-gray-800/60 border border-gray-700' : 'bg-white border border-gray-200'} shadow-sm`}>
+            <h1 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               {getGreetingMessage(user?.name?.split(' ')[0] ?? 'there')}
             </h1>
-            <p className={`text-sm italic ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            <p className={`mt-2 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               "{getRandomQuote()}"
             </p>
           </div>

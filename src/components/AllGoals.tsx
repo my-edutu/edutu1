@@ -290,17 +290,58 @@ const AllGoals: React.FC<AllGoalsProps> = ({ onBack, onSelectGoal, onAddGoal }) 
       </div>
 
       <div className="p-4 space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {summaryCards.map((card) => (
-            <Card
-              key={card.label}
-              className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} p-4`}
-            >
-              <p className="text-xs uppercase tracking-wide text-muted">{card.label}</p>
-              <p className="mt-2 text-2xl font-semibold text-primary">{card.value}</p>
-              <p className="mt-1 text-xs text-muted">{card.helper}</p>
-            </Card>
-          ))}
+        <div className="space-y-3">
+          <div className="grid grid-cols-4 gap-4 overflow-x-auto">
+            {summaryCards.map((card, index) => {
+              let bgColor = '';
+              if (isDarkMode) {
+                switch(index) {
+                  case 0: // Total goals
+                    bgColor = 'bg-blue-900/20';
+                    break;
+                  case 1: // Consistency
+                    bgColor = 'bg-green-900/20';
+                    break;
+                  case 2: // Avg progress
+                    bgColor = 'bg-purple-900/20';
+                    break;
+                  case 3: // Next deadline
+                    bgColor = 'bg-amber-900/20';
+                    break;
+                  default:
+                    bgColor = 'bg-gray-800/70';
+                }
+              } else {
+                switch(index) {
+                  case 0: // Total goals
+                    bgColor = 'bg-blue-50';
+                    break;
+                  case 1: // Consistency
+                    bgColor = 'bg-green-50';
+                    break;
+                  case 2: // Avg progress
+                    bgColor = 'bg-purple-50';
+                    break;
+                  case 3: // Next deadline
+                    bgColor = 'bg-amber-50';
+                    break;
+                  default:
+                    bgColor = 'bg-white';
+                }
+              }
+              
+              return (
+              <Card
+                key={card.label}
+                className={`flex-shrink-0 w-32 ${bgColor} ${isDarkMode ? 'border border-gray-700' : 'border border-gray-200'} p-4 rounded-2xl`}
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <p className="text-xs uppercase tracking-wide text-muted">{card.label}</p>
+                <p className="mt-2 text-2xl font-semibold text-primary">{card.value}</p>
+                <p className="mt-1 text-xs text-muted">{card.helper}</p>
+              </Card>
+            )})}
+          </div>
         </div>
 
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

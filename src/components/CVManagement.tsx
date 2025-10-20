@@ -1,625 +1,1082 @@
-import React, { useState } from 'react';
-import { 
-  ArrowLeft, 
-  Upload, 
-  FileText, 
-  Download, 
-  Star, 
-  CheckCircle, 
-  AlertCircle, 
-  Zap,
-  Eye,
-  Edit,
-  Plus,
+﻿
+import React, {
+  DragEvent,
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react";
+import {
+  AlertCircle,
+  ArrowLeft,
   BarChart3,
-  Camera,
+  CheckCircle,
+  Download,
+  FileText,
+  Folder,
   Loader2,
+  RefreshCw,
   Sparkles,
-  Target,
-  TrendingUp
-} from 'lucide-react';
-import Button from './ui/Button';
-import Card from './ui/Card';
-import { useDarkMode } from '../hooks/useDarkMode';
+  Trash2,
+  TrendingUp,
+  Upload,
+  Zap
+} from "lucide-react";
+import Button from "./ui/Button";
+import Card from "./ui/Card";
+import { useDarkMode } from "../hooks/useDarkMode";
+import {
+  analyzeCvDocument,
+  deleteCvDocument,
+  generateCvDocument,
+  getCvDocument,
+  listCvDocuments,
+  optimizeCvDocument,
+  uploadCvDocument,
+  CvDocument
+} from "../services/cvService";
+
+type Section = "overview" | "library" | "upload" | "analysis" | "optimize" | "generate";
 
 interface CVManagementProps {
   onBack: () => void;
 }
 
+interface UploadFormState {
+  file: File | null;
+  jobTarget: string;
+  description: string;
+  keywords: string;
+}
+
+interface AnalysisFormState {
+  jobTarget: string;
+  description: string;
+  keywords: string;
+}
+
+interface OptimizeFormState {
+  focusSummary: boolean;
+  focusExperience: boolean;
+  focusProjects: boolean;
+  keywords: string;
+}
+
+interface GenerationFormState {
+  fullName: string;
+  targetRole: string;
+  summary: string;
+  skills: string;
+  experience: string;
+  education: string;
+}
+
+interface FeedbackState {
+  type: "success" | "error";
+  message: string;
+}
+
+const SECTION_LABELS: Record<Section, string> = {
+  overview: "Overview",
+  library: "Library",
+  upload: "Upload",
+  analysis: "ATS",
+  optimize: "Optimize",
+  generate: "AI Builder"
+};
+
+const DEFAULT_UPLOAD_FORM: UploadFormState = {
+  file: null,
+  jobTarget: "",
+  description: "",
+  keywords: ""
+};
+
+const DEFAULT_ANALYSIS_FORM: AnalysisFormState = {
+  jobTarget: "",
+  description: "",
+  keywords: ""
+};
+
+const DEFAULT_OPTIMIZE_FORM: OptimizeFormState = {
+  focusSummary: true,
+  focusExperience: true,
+  focusProjects: false,
+  keywords: ""
+};
+
+const DEFAULT_GENERATE_FORM: GenerationFormState = {
+  fullName: "",
+  targetRole: "",
+  summary: "",
+  skills: "",
+  experience: "",
+  education: ""
+};
+
+const formatDate = (value?: string) => {
+  if (!value) {
+    return "Unknown";
+  }
+  try {
+    return new Date(value).toLocaleString();
+  } catch {
+    return value;
+  }
+};
+
+const formatSize = (value: number) => {
+  if (value >= 1024 * 1024) {
+    return `${(value / (1024 * 1024)).toFixed(2)} MB`;
+  }
+  if (value >= 1024) {
+    return `${(value / 1024).toFixed(1)} KB`;
+  }
+  return `${value} B`;
+};
+
+const getScoreColor = (score: number) => {
+  if (score >= 90) {
+    return "text-green-600 dark:text-green-400";
+  }
+  if (score >= 75) {
+    return "text-yellow-600 dark:text-yellow-400";
+  }
+  return "text-red-500 dark:text-red-400";
+};
+
+const getScoreLabel = (score: number) => {
+  if (score >= 90) {
+    return "Excellent";
+  }
+  if (score >= 75) {
+    return "Strong";
+  }
+  if (score >= 60) {
+    return "Needs work";
+  }
+  return "Rebuild";
+};
+
 const CVManagement: React.FC<CVManagementProps> = ({ onBack }) => {
-  const [activeSection, setActiveSection] = useState<'overview' | 'upload' | 'optimize' | 'ats' | 'generate'>('overview');
-  const [uploadedCV, setUploadedCV] = useState<File | null>(null);
-  const [atsScore, setAtsScore] = useState<number | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisComplete, setAnalysisComplete] = useState(false);
   const { isDarkMode } = useDarkMode();
+  const [section, setSection] = useState<Section>("overview");
+  const [records, setRecords] = useState<CvDocument[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [loadingLibrary, setLoadingLibrary] = useState(true);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const [uploadForm, setUploadForm] = useState<UploadFormState>(DEFAULT_UPLOAD_FORM);
+  const [analysisForm, setAnalysisForm] = useState<AnalysisFormState>(DEFAULT_ANALYSIS_FORM);
+  const [optimizeForm, setOptimizeForm] = useState<OptimizeFormState>(DEFAULT_OPTIMIZE_FORM);
+  const [generateForm, setGenerateForm] = useState<GenerationFormState>(DEFAULT_GENERATE_FORM);
+  const [latestDraft, setLatestDraft] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleBack = () => {
-    scrollToTop();
-    onBack();
-  };
+  const selectedRecord = useMemo(
+    () => records.find((item) => item.id === selectedId) ?? null,
+    [records, selectedId]
+  );
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setUploadedCV(file);
-      setIsAnalyzing(true);
-      setAnalysisComplete(false);
-      
-      // Simulate analysis process
-      setTimeout(() => {
-        setIsAnalyzing(false);
-        setAnalysisComplete(true);
-        setAtsScore(Math.floor(Math.random() * 30) + 70);
-      }, 3000);
-    }
-  };
-
-  const handleCameraUpload = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.capture = 'environment';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        setUploadedCV(new File([file], 'scanned-cv.pdf', { type: 'application/pdf' }));
-        setIsAnalyzing(true);
-        setAnalysisComplete(false);
-        
-        setTimeout(() => {
-          setIsAnalyzing(false);
-          setAnalysisComplete(true);
-          setAtsScore(Math.floor(Math.random() * 30) + 70);
-        }, 4000);
+  const loadLibrary = useCallback(async () => {
+    setLoadingLibrary(true);
+    try {
+      const docs = await listCvDocuments();
+      setRecords(docs);
+      if (docs.length > 0) {
+        setSelectedId((prev) => prev ?? docs[0].id);
+      } else {
+        setSelectedId(null);
       }
-    };
-    input.click();
-  };
-
-  const handleOptimizeCV = () => {
-    setIsAnalyzing(true);
-    setTimeout(() => {
-      setIsAnalyzing(false);
-      setAtsScore(Math.min(100, (atsScore || 75) + Math.floor(Math.random() * 15) + 5));
-    }, 2500);
-  };
-
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return 'text-green-600 dark:text-green-400';
-    if (score >= 75) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
-  };
-
-  const getScoreIcon = (score: number) => {
-    if (score >= 90) return <CheckCircle size={20} className="text-green-600 dark:text-green-400" />;
-    if (score >= 75) return <AlertCircle size={20} className="text-yellow-600 dark:text-yellow-400" />;
-    return <AlertCircle size={20} className="text-red-600 dark:text-red-400" />;
-  };
-
-  const capabilities = [
-    {
-      id: 'upload',
-      title: 'Smart Upload & Scan',
-      description: 'Upload your existing CV or scan a physical copy using your camera. Our AI instantly processes and digitizes your document.',
-      icon: <Upload size={24} className="text-blue-600" />,
-      features: ['PDF, DOC, DOCX support', 'Camera scanning', 'Instant processing', 'Format conversion']
-    },
-    {
-      id: 'optimize',
-      title: 'AI-Powered Optimization',
-      description: 'Transform your CV with intelligent suggestions. Our AI analyzes content, structure, and keywords to maximize your impact.',
-      icon: <Zap size={24} className="text-purple-600" />,
-      features: ['Content enhancement', 'Keyword optimization', 'Structure improvement', 'Industry-specific tips']
-    },
-    {
-      id: 'ats',
-      title: 'ATS Compatibility Check',
-      description: 'Ensure your CV passes through Applicant Tracking Systems. Get detailed scoring and actionable recommendations.',
-      icon: <BarChart3 size={24} className="text-green-600" />,
-      features: ['ATS scoring', 'Format analysis', 'Keyword density', 'Compatibility report']
-    },
-    {
-      id: 'generate',
-      title: 'Professional CV Builder',
-      description: 'Create stunning CVs from scratch with our guided builder. Choose from professional templates designed for success.',
-      icon: <Plus size={24} className="text-orange-600" />,
-      features: ['Professional templates', 'Guided creation', 'Real-time preview', 'Export options']
+    } catch (error) {
+      console.error(error);
+      setFeedback({ type: "error", message: "Unable to load stored CVs." });
+    } finally {
+      setLoadingLibrary(false);
     }
-  ];
+  }, []);
 
-  const optimizationSuggestions = [
-    {
-      type: 'critical',
-      title: 'Add Keywords',
-      description: 'Include more industry-specific keywords to improve ATS compatibility',
-      impact: '+8 points'
-    },
-    {
-      type: 'important',
-      title: 'Format Consistency',
-      description: 'Use consistent formatting for dates and bullet points',
-      impact: '+5 points'
-    },
-    {
-      type: 'minor',
-      title: 'Contact Information',
-      description: 'Add LinkedIn profile and portfolio links',
-      impact: '+3 points'
+  useEffect(() => {
+    loadLibrary();
+  }, [loadLibrary]);
+
+  useEffect(() => {
+    if (!selectedRecord) {
+      setAnalysisForm(DEFAULT_ANALYSIS_FORM);
+      return;
     }
-  ];
+    setAnalysisForm({
+      jobTarget: selectedRecord.jobTarget ?? "",
+      description: selectedRecord.jobDescription ?? "",
+      keywords: ""
+    });
+  }, [selectedRecord?.id]);
+
+  useEffect(() => {
+    if (!feedback) {
+      return;
+    }
+    const timer = window.setTimeout(() => setFeedback(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [feedback]);
+
+  const setMessage = (message: FeedbackState) => {
+    setFeedback(message);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setUploadForm((prev) => ({ ...prev, file }));
+  };
+
+  const handleDrop = (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0];
+    if (!file) {
+      return;
+    }
+    setUploadForm((prev) => ({ ...prev, file }));
+  };
+
+  const handleUpload = async (event?: FormEvent) => {
+    event?.preventDefault();
+    if (!uploadForm.file) {
+      setMessage({ type: "error", message: "Select or drop a CV file first." });
+      return;
+    }
+    setBusyAction("upload");
+    try {
+      const record = await uploadCvDocument({
+        file: uploadForm.file,
+        jobTarget: uploadForm.jobTarget || undefined,
+        jobDescription: uploadForm.description || undefined,
+        customKeywords: uploadForm.keywords
+          ? uploadForm.keywords.split(",").map((item) => item.trim()).filter(Boolean)
+          : undefined
+      });
+      setRecords((prev) => [record, ...prev.filter((item) => item.id !== record.id)]);
+      setSelectedId(record.id);
+      setSection("analysis");
+      setUploadForm(DEFAULT_UPLOAD_FORM);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      setMessage({ type: "success", message: "CV uploaded." });
+    } catch (error) {
+      console.error(error);
+      setMessage({ type: "error", message: "Upload failed. Try again." });
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const handleAnalysis = async () => {
+    if (!selectedRecord) {
+      return;
+    }
+    setBusyAction("analysis");
+    try {
+      await analyzeCvDocument({
+        cvId: selectedRecord.id,
+        jobTarget: analysisForm.jobTarget || undefined,
+        jobDescription: analysisForm.description || undefined,
+        customKeywords: analysisForm.keywords
+          ? analysisForm.keywords.split(",").map((item) => item.trim()).filter(Boolean)
+          : undefined
+      });
+      const updated = await getCvDocument(selectedRecord.id);
+      if (updated) {
+        setRecords((prev) => [updated, ...prev.filter((item) => item.id !== updated.id)]);
+        setSelectedId(updated.id);
+      }
+      setMessage({ type: "success", message: "ATS analysis ready." });
+    } catch (error) {
+      console.error(error);
+      setMessage({ type: "error", message: "Could not complete analysis." });
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const handleOptimize = async () => {
+    if (!selectedRecord) {
+      return;
+    }
+    setBusyAction("optimize");
+    try {
+      const emphasizeSections = [
+        optimizeForm.focusSummary ? "Summary" : null,
+        optimizeForm.focusExperience ? "Experience" : null,
+        optimizeForm.focusProjects ? "Projects" : null
+      ].filter(Boolean) as string[];
+
+      await optimizeCvDocument({
+        cvId: selectedRecord.id,
+        emphasizeSections,
+        customKeywords: optimizeForm.keywords
+          ? optimizeForm.keywords.split(",").map((item) => item.trim()).filter(Boolean)
+          : undefined
+      });
+      const updated = await getCvDocument(selectedRecord.id);
+      if (updated) {
+        setRecords((prev) => [updated, ...prev.filter((item) => item.id !== updated.id)]);
+        setSelectedId(updated.id);
+      }
+      setMessage({ type: "success", message: "Optimization brief generated." });
+    } catch (error) {
+      console.error(error);
+      setMessage({ type: "error", message: "Optimization failed. Try again." });
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Remove this CV from the workspace?")) {
+      return;
+    }
+    setBusyAction(`delete-${id}`);
+    try {
+      await deleteCvDocument(id);
+      setRecords((prev) => prev.filter((item) => item.id !== id));
+      if (selectedId === id) {
+        const next = records.find((item) => item.id !== id) ?? null;
+        setSelectedId(next?.id ?? null);
+      }
+      setMessage({ type: "success", message: "CV removed." });
+    } catch (error) {
+      console.error(error);
+      setMessage({ type: "error", message: "Unable to delete right now." });
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const handleDownload = (record: CvDocument) => {
+    const anchor = document.createElement("a");
+    let href = record.dataUrl ?? "";
+    if (!href) {
+      const blob = new Blob([record.textContent ?? ""], { type: record.mimeType || "text/plain" });
+      href = URL.createObjectURL(blob);
+    }
+    anchor.href = href;
+    anchor.download = record.fileName || `${record.title}.txt`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    if (!record.dataUrl) {
+      URL.revokeObjectURL(href);
+    }
+    setMessage({ type: "success", message: "Download started." });
+  };
+
+  const handleGenerate = async (event?: FormEvent) => {
+    event?.preventDefault();
+    if (!generateForm.fullName || !generateForm.targetRole || !generateForm.summary) {
+      setMessage({ type: "error", message: "Full name, target role, and summary are required." });
+      return;
+    }
+    setBusyAction("generate");
+    try {
+      const { record, draft } = await generateCvDocument({
+        fullName: generateForm.fullName.trim(),
+        targetRole: generateForm.targetRole.trim(),
+        summary: generateForm.summary.trim(),
+        skills: generateForm.skills
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean),
+        experience: generateForm.experience
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .map((line) => ({
+            role: line,
+            company: "",
+            duration: "",
+            achievements: []
+          })),
+        education: generateForm.education
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .map((line) => ({
+            credential: line,
+            school: "",
+            year: ""
+          }))
+      });
+      setRecords((prev) => [record, ...prev.filter((item) => item.id !== record.id)]);
+      setSelectedId(record.id);
+      setSection("analysis");
+      setLatestDraft(draft);
+      setMessage({ type: "success", message: "AI draft added to your library." });
+    } catch (error) {
+      console.error(error);
+      setMessage({ type: "error", message: "Generation failed. Adjust inputs and retry." });
+    } finally {
+      setBusyAction(null);
+    }
+  };
+  const renderFeedback = () => {
+    if (!feedback) {
+      return null;
+    }
+    return (
+      <div
+        className={`flex items-center gap-3 rounded-xl border p-4 text-sm ${
+          feedback.type === "success"
+            ? "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-900/10 dark:text-green-300"
+            : "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/10 dark:text-red-300"
+        }`}
+      >
+        {feedback.type === "success" ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+        <span className="font-medium">{feedback.message}</span>
+      </div>
+    );
+  };
 
   const renderOverview = () => (
     <div className="space-y-6">
-      {/* Header */}
       <Card className="dark:bg-gray-800 dark:border-gray-700 text-center">
-        <div className="w-16 h-16 bg-gradient-to-br from-primary to-accent rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/70">
           <FileText size={32} className="text-white" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">CV Management Hub</h2>
-        <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto leading-relaxed">
-          Transform your CV into a powerful tool that opens doors to opportunities. Our AI-powered platform 
-          helps you create, optimize, and perfect your professional profile.
+        <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">CV Management Hub</h2>
+        <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+          Upload files, inspect ATS readiness, generate AI drafts, and store everything in one workspace.
         </p>
       </Card>
 
-      {/* Capabilities Grid */}
-      <div className="grid md:grid-cols-2 gap-6">
-        {capabilities.map((capability, index) => (
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="dark:bg-gray-800 dark:border-gray-700 p-5 text-center">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Documents</div>
+          <div className="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">{records.length}</div>
+        </Card>
+        <Card className="dark:bg-gray-800 dark:border-gray-700 p-5 text-center">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Analyzed</div>
+          <div className="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">
+            {records.filter((item) => item.analysis).length}
+          </div>
+        </Card>
+        <Card className="dark:bg-gray-800 dark:border-gray-700 p-5 text-center">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Optimized</div>
+          <div className="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">
+            {records.filter((item) => item.optimization).length}
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+  const renderLibrary = () => (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">CV Library</h3>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => setSection("upload")}>
+            <Upload size={16} className="mr-2" />
+            Upload
+          </Button>
+          <Button variant="secondary" onClick={() => setSection("generate")}>
+            <Sparkles size={16} className="mr-2" />
+            AI Builder
+          </Button>
+          <Button variant="secondary" onClick={loadLibrary} disabled={loadingLibrary}>
+            {loadingLibrary ? <Loader2 size={16} className="mr-2 animate-spin" /> : <RefreshCw size={16} className="mr-2" />}
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {loadingLibrary ? (
+        <Card className="dark:bg-gray-800 dark:border-gray-700 flex items-center justify-center gap-3 p-6 text-sm text-gray-600 dark:text-gray-400">
+          <Loader2 size={18} className="animate-spin" />
+          Loading library…
+        </Card>
+      ) : records.length === 0 ? (
+        <Card className="dark:bg-gray-800 dark:border-gray-700 p-8 text-center text-sm text-gray-600 dark:text-gray-400">
+          No CVs yet. Upload a file or generate one with AI.
+        </Card>
+      ) : (
+        records.map((record) => (
           <Card
-            key={capability.id}
-            className="cursor-pointer hover:shadow-lg transition-all transform hover:scale-[1.02] dark:bg-gray-800 dark:border-gray-700 animate-slide-up group"
-            style={{ animationDelay: `${index * 100}ms` }}
-            onClick={() => setActiveSection(capability.id as any)}
+            key={record.id}
+            className={`dark:bg-gray-800 dark:border-gray-700 transition-colors ${selectedId === record.id ? "border-primary" : ""}`}
           >
-            <div className="flex items-start gap-4 mb-4">
-              <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                {capability.icon}
-              </div>
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2 group-hover:text-primary transition-colors">
-                  {capability.title}
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-3">
-                  {capability.description}
+                <button
+                  type="button"
+                  className="text-left"
+                  onClick={() => setSelectedId(record.id)}
+                >
+                  <h4 className="text-md font-semibold text-gray-900 dark:text-white">{record.title}</h4>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Uploaded {formatDate(record.uploadedAt)} • {formatSize(record.fileSize)}
+                  </p>
+                </button>
+                <p className="mt-3 line-clamp-3 text-sm text-gray-600 dark:text-gray-400">
+                  {record.textContent || "No extracted text available."}
                 </p>
               </div>
-            </div>
-            
-            <div className="space-y-2">
-              {capability.features.map((feature, idx) => (
-                <div key={idx} className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                  <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-                  <span>{feature}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-primary">Get Started</span>
-                <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all">
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-                    <path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                  </svg>
-                </div>
+              <div className="flex w-full flex-wrap gap-2 md:w-48">
+                <Button variant="secondary" onClick={() => { setSelectedId(record.id); setSection("analysis"); }}>
+                  <BarChart3 size={16} className="mr-2" />
+                  ATS
+                </Button>
+                <Button variant="secondary" onClick={() => handleDownload(record)}>
+                  <Download size={16} className="mr-2" />
+                  Download
+                </Button>
+                <Button variant="secondary" onClick={() => { setSelectedId(record.id); setSection("optimize"); }}>
+                  <Zap size={16} className="mr-2" />
+                  Optimize
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => handleDelete(record.id)}
+                  disabled={busyAction === `delete-${record.id}`}
+                  className="text-red-500 hover:text-red-400"
+                >
+                  {busyAction === `delete-${record.id}` ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Trash2 size={16} className="mr-2" />}
+                  Delete
+                </Button>
               </div>
             </div>
           </Card>
-        ))}
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <Card className="text-center dark:bg-gray-800 dark:border-gray-700">
-          <div className="text-2xl font-bold text-primary mb-1">98%</div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">Success Rate</div>
-        </Card>
-        <Card className="text-center dark:bg-gray-800 dark:border-gray-700">
-          <div className="text-2xl font-bold text-green-600 mb-1">50K+</div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">CVs Enhanced</div>
-        </Card>
-        <Card className="text-center dark:bg-gray-800 dark:border-gray-700">
-          <div className="text-2xl font-bold text-purple-600 mb-1">24/7</div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">AI Support</div>
-        </Card>
-      </div>
-    </div>
-  );
-
-  const renderUploadSection = () => (
-    <div className="space-y-6">
-      <Card className="dark:bg-gray-800 dark:border-gray-700">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Upload size={32} className="text-blue-600 dark:text-blue-400" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">Upload Your CV</h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Upload your current CV to get started with optimization and ATS scoring
-          </p>
-          
-          <div className="space-y-4">
-            {/* File Upload */}
-            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl p-8 hover:border-primary dark:hover:border-primary transition-colors">
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx"
-                onChange={handleFileUpload}
-                className="hidden"
-                id="cv-upload"
-              />
-              <label
-                htmlFor="cv-upload"
-                className="cursor-pointer flex flex-col items-center gap-4"
-              >
-                <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center">
-                  <FileText size={24} className="text-gray-600 dark:text-gray-400" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-800 dark:text-white">Click to upload or drag and drop</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">PDF, DOC, or DOCX (max 5MB)</p>
-                </div>
-              </label>
-            </div>
-
-            {/* Camera Upload */}
-            <div className="text-center">
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">Or</p>
-              <Button
-                onClick={handleCameraUpload}
-                variant="secondary"
-                className="inline-flex items-center gap-2"
-              >
-                <Camera size={16} />
-                Scan with Camera
-              </Button>
-            </div>
-          </div>
-
-          {/* Analysis Loading */}
-          {isAnalyzing && (
-            <div className="mt-6 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-200 dark:border-blue-800">
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <Loader2 size={24} className="text-blue-600 dark:text-blue-400 animate-spin" />
-                <span className="font-medium text-blue-800 dark:text-blue-300">Analyzing your CV...</span>
-              </div>
-              <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
-                <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
-              </div>
-              <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">
-                This may take a few moments while we process your document
-              </p>
-            </div>
-          )}
-
-          {/* Upload Success */}
-          {uploadedCV && analysisComplete && !isAnalyzing && (
-            <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-2xl border border-green-200 dark:border-green-800">
-              <div className="flex items-center gap-3">
-                <CheckCircle size={20} className="text-green-600 dark:text-green-400" />
-                <div className="flex-1 text-left">
-                  <p className="font-medium text-green-800 dark:text-green-300">{uploadedCV.name}</p>
-                  <p className="text-sm text-green-600 dark:text-green-400">
-                    {(uploadedCV.size / 1024 / 1024).toFixed(2)} MB • Analysis complete
-                  </p>
-                </div>
-                <Button variant="secondary" className="px-4 py-2">
-                  <Eye size={16} className="mr-2" />
-                  Preview
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {uploadedCV && analysisComplete && (
-        <Card className="dark:bg-gray-800 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Next Steps</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <Button 
-              onClick={() => setActiveSection('ats')}
-              className="flex items-center justify-center gap-2"
-            >
-              <BarChart3 size={16} />
-              Check ATS Score
-            </Button>
-            <Button 
-              variant="secondary"
-              onClick={() => setActiveSection('optimize')}
-              className="flex items-center justify-center gap-2"
-            >
-              <Zap size={16} />
-              Optimize CV
-            </Button>
-          </div>
-        </Card>
+        ))
       )}
     </div>
   );
-
-  const renderOptimizeSection = () => (
-    <div className="space-y-6">
-      <Card className="dark:bg-gray-800 dark:border-gray-700">
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Zap size={32} className="text-purple-600 dark:text-purple-400" />
+  const renderUpload = () => (
+    <form className="space-y-6" onSubmit={handleUpload}>
+      <Card className="dark:bg-gray-800 dark:border-gray-700 p-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Upload CV</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Drop a PDF, DOC, DOCX, or TXT file. We will extract the text and prep it for ATS checks.
+            </p>
           </div>
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">CV Optimization</h3>
-          <p className="text-gray-600 dark:text-gray-400">
-            Get AI-powered suggestions to improve your CV and increase your chances of success
-          </p>
+          <Button variant="secondary" onClick={() => setSection("library")} type="button">
+            <Folder size={16} className="mr-2" />
+            Library
+          </Button>
         </div>
+      </Card>
 
-        {uploadedCV ? (
-          <div className="space-y-4">
-            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-200 dark:border-blue-800">
-              <div className="flex items-center gap-3 mb-3">
-                <FileText size={20} className="text-blue-600 dark:text-blue-400" />
-                <span className="font-medium text-blue-800 dark:text-blue-300">{uploadedCV.name}</span>
-              </div>
-              {isAnalyzing ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 size={16} className="text-blue-600 dark:text-blue-400 animate-spin" />
-                  <span className="text-sm text-blue-600 dark:text-blue-400">Optimizing...</span>
-                </div>
-              ) : (
-                <Button onClick={handleOptimizeCV} className="w-full">
-                  <Zap size={16} className="mr-2" />
-                  Optimize My CV
-                </Button>
-              )}
-            </div>
-
-            <div className="space-y-3">
-              <h4 className="font-semibold text-gray-800 dark:text-white">Optimization Suggestions</h4>
-              {optimizationSuggestions.map((suggestion, index) => (
-                <div
-                  key={index}
-                  className="p-4 border border-gray-200 dark:border-gray-600 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={`w-2 h-2 rounded-full mt-2 ${
-                      suggestion.type === 'critical' ? 'bg-red-500' :
-                      suggestion.type === 'important' ? 'bg-yellow-500' : 'bg-green-500'
-                    }`}></div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <h5 className="font-medium text-gray-800 dark:text-white">{suggestion.title}</h5>
-                        <span className="text-sm text-primary font-medium">{suggestion.impact}</span>
-                      </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{suggestion.description}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+      <Card className="dark:bg-gray-800 dark:border-gray-700 border-2 border-dashed border-gray-300 dark:border-gray-600 p-10 text-center">
+        <label
+          htmlFor="cv-file-input"
+          className="flex cursor-pointer flex-col items-center gap-3"
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={handleDrop}
+        >
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-700">
+            <Upload size={28} className="text-gray-600 dark:text-gray-300" />
           </div>
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-gray-600 dark:text-gray-400 mb-4">Upload a CV first to get optimization suggestions</p>
-            <Button onClick={() => setActiveSection('upload')} variant="secondary">
-              <Upload size={16} className="mr-2" />
-              Upload CV
-            </Button>
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Click to browse or drop a file</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">5 MB max</p>
+        </label>
+        <input
+          id="cv-file-input"
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept=".pdf,.doc,.docx,.txt"
+          onChange={handleFileChange}
+        />
+        {uploadForm.file && (
+          <div className="mt-4 rounded-xl bg-gray-100 px-4 py-2 text-sm text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+            Selected: {uploadForm.file.name} ({formatSize(uploadForm.file.size)})
           </div>
         )}
       </Card>
-    </div>
-  );
 
-  const renderATSSection = () => (
-    <div className="space-y-6">
-      <Card className="dark:bg-gray-800 dark:border-gray-700">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <BarChart3 size={32} className="text-green-600 dark:text-green-400" />
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="dark:bg-gray-800 dark:border-gray-700 space-y-3 p-5">
+          <div>
+            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Target role</label>
+            <input
+              type="text"
+              value={uploadForm.jobTarget}
+              onChange={(event) => setUploadForm((prev) => ({ ...prev, jobTarget: event.target.value }))}
+              className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+            />
           </div>
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">ATS Compatibility Score</h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Check how well your CV performs with Applicant Tracking Systems
-          </p>
+          <div>
+            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Job description snippet</label>
+            <textarea
+              value={uploadForm.description}
+              onChange={(event) => setUploadForm((prev) => ({ ...prev, description: event.target.value }))}
+              rows={4}
+              className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Custom keywords</label>
+            <input
+              type="text"
+              value={uploadForm.keywords}
+              onChange={(event) => setUploadForm((prev) => ({ ...prev, keywords: event.target.value }))}
+              className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              placeholder="Comma separated"
+            />
+          </div>
+        </Card>
+        <Card className="dark:bg-gray-800 dark:border-gray-700 p-5 flex flex-col justify-between">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            <p>We parse the document, compute stats, and prepare ATS analysis automatically.</p>
+            <p className="mt-2">All files stay local to this device.</p>
+          </div>
+          <Button type="submit" className="mt-6" disabled={busyAction === "upload"}>
+            {busyAction === "upload" ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Upload size={16} className="mr-2" />}
+            Upload and analyze
+          </Button>
+        </Card>
+      </div>
+    </form>
+  );
+  const renderAnalysis = () => {
+    if (!selectedRecord) {
+      return (
+        <Card className="dark:bg-gray-800 dark:border-gray-700 p-8 text-center text-sm text-gray-600 dark:text-gray-400">
+          Pick a CV from the library to view its ATS analysis.
+        </Card>
+      );
+    }
 
-          {isAnalyzing ? (
-            <div className="text-center py-8">
-              <div className="relative w-32 h-32 mx-auto mb-4">
-                <div className="absolute inset-0 border-4 border-gray-200 dark:border-gray-700 rounded-full"></div>
-                <div className="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-primary">Analyzing</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Please wait</div>
-                  </div>
-                </div>
-              </div>
-              <p className="text-gray-600 dark:text-gray-400">Analyzing your CV for ATS compatibility...</p>
+    return (
+      <div className="space-y-6">
+        <Card className="dark:bg-gray-800 dark:border-gray-700 p-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{selectedRecord.title}</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Update role context and rerun the ATS scoring engine.</p>
             </div>
-          ) : atsScore !== null ? (
-            <div className="space-y-6">
-              <div className="relative">
-                <div className="w-32 h-32 mx-auto">
-                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      stroke="currentColor"
-                      strokeWidth="8"
-                      fill="none"
-                      className="text-gray-200 dark:text-gray-700"
-                    />
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      stroke="currentColor"
-                      strokeWidth="8"
-                      fill="none"
-                      strokeDasharray={`${2 * Math.PI * 40}`}
-                      strokeDashoffset={`${2 * Math.PI * 40 * (1 - atsScore / 100)}`}
-                      className={getScoreColor(atsScore)}
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className={`text-2xl font-bold ${getScoreColor(atsScore)}`}>{atsScore}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">/ 100</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-center gap-2">
-                {getScoreIcon(atsScore)}
-                <span className={`font-medium ${getScoreColor(atsScore)}`}>
-                  {atsScore >= 90 ? 'Excellent' : atsScore >= 75 ? 'Good' : 'Needs Improvement'}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-2xl">
-                  <div className="font-semibold text-gray-800 dark:text-white">Keywords</div>
-                  <div className="text-gray-600 dark:text-gray-400">85%</div>
-                </div>
-                <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-2xl">
-                  <div className="font-semibold text-gray-800 dark:text-white">Format</div>
-                  <div className="text-gray-600 dark:text-gray-400">92%</div>
-                </div>
-              </div>
-
-              <Button onClick={() => setActiveSection('optimize')} className="w-full">
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" onClick={() => handleDownload(selectedRecord)}>
+                <Download size={16} className="mr-2" />
+                Download
+              </Button>
+              <Button variant="secondary" onClick={() => setSection("optimize")}>
                 <Zap size={16} className="mr-2" />
-                Improve Score
+                Optimize
               </Button>
             </div>
-          ) : uploadedCV ? (
-            <div className="text-center py-8">
-              <Button onClick={() => {
-                setIsAnalyzing(true);
-                setTimeout(() => {
-                  setIsAnalyzing(false);
-                  setAtsScore(Math.floor(Math.random() * 30) + 70);
-                }, 3000);
-              }} className="inline-flex items-center gap-2">
-                <BarChart3 size={16} />
-                Analyze ATS Score
+          </div>
+        </Card>
+
+        <Card className="dark:bg-gray-800 dark:border-gray-700 p-6">
+          <form
+            className="grid gap-4 md:grid-cols-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleAnalysis();
+            }}
+          >
+            <div className="md:col-span-2">
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Target role</label>
+              <input
+                type="text"
+                value={analysisForm.jobTarget}
+                onChange={(event) => setAnalysisForm((prev) => ({ ...prev, jobTarget: event.target.value }))}
+                className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Job description snippet</label>
+              <textarea
+                value={analysisForm.description}
+                onChange={(event) => setAnalysisForm((prev) => ({ ...prev, description: event.target.value }))}
+                rows={4}
+                className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Custom keywords</label>
+              <input
+                type="text"
+                value={analysisForm.keywords}
+                onChange={(event) => setAnalysisForm((prev) => ({ ...prev, keywords: event.target.value }))}
+                className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                placeholder="Comma separated"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2 md:col-span-2">
+              <Button type="submit" disabled={busyAction === "analysis"}>
+                {busyAction === "analysis" ? (
+                  <Loader2 size={16} className="mr-2 animate-spin" />
+                ) : (
+                  <BarChart3 size={16} className="mr-2" />
+                )}
+                Run ATS analysis
               </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() =>
+                  setAnalysisForm({
+                    jobTarget: selectedRecord.jobTarget ?? "",
+                    description: selectedRecord.jobDescription ?? "",
+                    keywords: ""
+                  })
+                }
+              >
+                Reset
+              </Button>
+            </div>
+          </form>
+        </Card>
+
+        <Card className="dark:bg-gray-800 dark;border-gray-700 p-6">
+          {selectedRecord.analysis ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="text-center">
+                <div className={`text-4xl font-semibold ${getScoreColor(selectedRecord.analysis.score)}`}>
+                  {selectedRecord.analysis.score}
+                </div>
+                <div className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+                  {getScoreLabel(selectedRecord.analysis.score)}
+                </div>
+                <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                  Last run {formatDate(selectedRecord.analysis.evaluatedAt)}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Highlights</h4>
+                <ul className="mt-2 space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                  <li>
+                    <span className="font-medium">Missing keywords:</span>{" "}
+                    {selectedRecord.analysis.missingKeywords.slice(0, 8).join(", ") || "None"}
+                  </li>
+                  <li>
+                    <span className="font-medium">Readability:</span> {selectedRecord.analysis.readability}
+                  </li>
+                  <li>
+                    <span className="font-medium">Actions:</span>
+                    <ul className="mt-1 space-y-1">
+                      {selectedRecord.analysis.recommendedActions.map((item) => (
+                        <li key={item} className="flex items-start gap-2 text-sm">
+                          <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                </ul>
+              </div>
             </div>
           ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-600 dark:text-gray-400 mb-4">Upload a CV to get your ATS score</p>
-              <Button onClick={() => setActiveSection('upload')} variant="secondary">
-                <Upload size={16} className="mr-2" />
-                Upload CV
-              </Button>
-            </div>
-          )}
-        </div>
-      </Card>
-    </div>
-  );
-
-  const renderGenerateSection = () => (
-    <div className="space-y-6">
-      <Card className="dark:bg-gray-800 dark:border-gray-700">
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Plus size={32} className="text-orange-600 dark:text-orange-400" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">Generate New CV</h3>
-          <p className="text-gray-600 dark:text-gray-400">
-            Create a professional CV from scratch with AI assistance and premium templates
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="p-4 border border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary transition-all cursor-pointer group">
-              <div className="text-center">
-                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                  <FileText size={24} className="text-blue-600 dark:text-blue-400" />
-                </div>
-                <h4 className="font-medium text-gray-800 dark:text-white mb-2">Professional Template</h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Clean, modern design for corporate roles</p>
-              </div>
-            </Card>
-
-            <Card className="p-4 border border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary transition-all cursor-pointer group">
-              <div className="text-center">
-                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                  <Star size={24} className="text-green-600 dark:text-green-400" />
-                </div>
-                <h4 className="font-medium text-gray-800 dark:text-white mb-2">Creative Template</h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Eye-catching design for creative fields</p>
-              </div>
-            </Card>
-          </div>
-
-          <div className="p-4 bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-2xl border border-orange-200 dark:border-orange-800">
-            <div className="flex items-center gap-3 mb-3">
-              <Sparkles size={20} className="text-orange-600 dark:text-orange-400" />
-              <h4 className="font-medium text-orange-800 dark:text-orange-300">AI-Powered CV Builder</h4>
-            </div>
-            <p className="text-sm text-orange-700 dark:text-orange-400 mb-4">
-              Answer a few questions and our AI will generate a professional CV tailored to your experience and goals
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Run the analysis to produce a score and tailored recommendations.
             </p>
-            <Button className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600">
-              <Plus size={16} className="mr-2" />
-              Start AI Builder
+          )}
+        </Card>
+
+        <Card className="dark:bg-gray-800 dark;border-gray-700 p-6">
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Preview</h4>
+          <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded-xl bg-gray-900/5 p-4 text-sm text-gray-700 dark:bg-gray-900/40 dark:text-gray-200">
+            {selectedRecord.textContent || "No text extracted from this document."}
+          </pre>
+        </Card>
+      </div>
+    );
+  };
+  const renderOptimize = () => {
+    if (!selectedRecord) {
+      return (
+        <Card className="dark:bg-gray-800 dark:border-gray-700 p-8 text-center text-sm text-gray-600 dark:text-gray-400">
+          Select a CV from the library to generate optimization guidance.
+        </Card>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <Card className="dark:bg-gray-800 dark:border-gray-700 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Optimization assistant</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Choose the sections to emphasize and we will draft improvements that can increase the ATS score.
+          </p>
+        </Card>
+
+        <Card className="dark:bg-gray-800 dark;border-gray-700 p-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={optimizeForm.focusSummary}
+                  onChange={(event) => setOptimizeForm((prev) => ({ ...prev, focusSummary: event.target.checked }))}
+                />
+                Summary
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={optimizeForm.focusExperience}
+                  onChange={(event) => setOptimizeForm((prev) => ({ ...prev, focusExperience: event.target.checked }))}
+                />
+                Experience
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={optimizeForm.focusProjects}
+                  onChange={(event) => setOptimizeForm((prev) => ({ ...prev, focusProjects: event.target.checked }))}
+                />
+                Projects
+              </label>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Extra keywords</label>
+              <input
+                type="text"
+                value={optimizeForm.keywords}
+                onChange={(event) => setOptimizeForm((prev) => ({ ...prev, keywords: event.target.value }))}
+                className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              />
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button onClick={handleOptimize} disabled={busyAction === "optimize"}>
+              {busyAction === "optimize" ? (
+                <Loader2 size={16} className="mr-2 animate-spin" />
+              ) : (
+                <Sparkles size={16} className="mr-2" />
+              )}
+              Generate brief
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setOptimizeForm(DEFAULT_OPTIMIZE_FORM)}
+            >
+              Reset
             </Button>
           </div>
+        </Card>
+
+        {selectedRecord.optimization ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="dark:bg-gray-800 dark;border-gray-700 p-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Summary suggestions</h4>
+              <ul className="space-y-1">
+                {selectedRecord.optimization.summarySuggestions.map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+            <Card className="dark:bg-gray-800 dark;border-gray-700 p-5 space-y-2 text-sm text-gray-700 dark:text-gray-300">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Bullet coaching</h4>
+              <ul className="space-y-1">
+                {selectedRecord.optimization.bulletSuggestions.map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <div>
+                <div className="mt-2 font-semibold text-gray-900 dark:text-white">Keyword opportunities</div>
+                <ul className="mt-1 space-y-1">
+                  {selectedRecord.optimization.keywordRecommendations.map((item) => (
+                    <li key={item} className="flex items-start gap-2">
+                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {selectedRecord.optimization.raisedScore && (
+                <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-600 dark:bg-green-900/30 dark:text-green-300">
+                  <TrendingUp size={14} />
+                  Target score {selectedRecord.optimization.raisedScore}
+                </div>
+              )}
+            </Card>
+          </div>
+        ) : (
+          <Card className="dark:bg-gray-800 dark;border-gray-700 p-8 text-center text-sm text-gray-600 dark:text-gray-400">
+            Run the assistant to see AI tips here.
+          </Card>
+        )}
+      </div>
+    );
+  };
+  const renderGenerate = () => (
+    <form className="space-y-6" onSubmit={handleGenerate}>
+      <Card className="dark:bg-gray-800 dark:border-gray-700 p-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">AI CV builder</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Provide key details and we will create a first draft saved in your library.
+            </p>
+          </div>
+          <Button variant="secondary" onClick={() => setSection("library")} type="button">
+            <Folder size={16} className="mr-2" />
+            Library
+          </Button>
         </div>
       </Card>
-    </div>
+
+      <Card className="dark:bg-gray-800 dark;border-gray-700 space-y-3 p-6">
+        <div>
+          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Full name</label>
+          <input
+            type="text"
+            value={generateForm.fullName}
+            onChange={(event) => setGenerateForm((prev) => ({ ...prev, fullName: event.target.value }))}
+            className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Target role</label>
+          <input
+            type="text"
+            value={generateForm.targetRole}
+            onChange={(event) => setGenerateForm((prev) => ({ ...prev, targetRole: event.target.value }))}
+            className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Summary</label>
+          <textarea
+            value={generateForm.summary}
+            onChange={(event) => setGenerateForm((prev) => ({ ...prev, summary: event.target.value }))}
+            rows={3}
+            className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Skills (comma separated)</label>
+          <input
+            type="text"
+            value={generateForm.skills}
+            onChange={(event) => setGenerateForm((prev) => ({ ...prev, skills: event.target.value }))}
+            className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Experience (one line per role)</label>
+          <textarea
+            value={generateForm.experience}
+            onChange={(event) => setGenerateForm((prev) => ({ ...prev, experience: event.target.value }))}
+            rows={4}
+            className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+            placeholder="Use short role descriptions. Detailed editing happens after generation."
+          />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Education (one line per entry)</label>
+          <textarea
+            value={generateForm.education}
+            onChange={(event) => setGenerateForm((prev) => ({ ...prev, education: event.target.value }))}
+            rows={3}
+            className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={busyAction === "generate"}>
+            {busyAction === "generate" ? (
+              <Loader2 size={16} className="mr-2 animate-spin" />
+            ) : (
+              <Sparkles size={16} className="mr-2" />
+            )}
+            Create draft
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              setGenerateForm(DEFAULT_GENERATE_FORM);
+              setLatestDraft(null);
+            }}
+          >
+            Reset form
+          </Button>
+        </div>
+      </Card>
+
+      {latestDraft && (
+        <Card className="dark:bg-gray-800 dark;border-gray-700 p-6">
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Latest AI draft</h4>
+          <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded-xl bg-gray-900/5 p-4 text-sm text-gray-700 dark:bg-gray-900/40 dark:text-gray-200">
+            {latestDraft}
+          </pre>
+        </Card>
+      )}
+    </form>
   );
+  const renderContent = () => {
+    switch (section) {
+      case "overview":
+        return renderOverview();
+      case "library":
+        return renderLibrary();
+      case "upload":
+        return renderUpload();
+      case "analysis":
+        return renderAnalysis();
+      case "optimize":
+        return renderOptimize();
+      case "generate":
+        return renderGenerate();
+      default:
+        return renderOverview();
+    }
+  };
 
   return (
-    <div className={`min-h-screen bg-white dark:bg-gray-900 animate-fade-in ${isDarkMode ? 'dark' : ''}`}>
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
-        <div className="p-4">
-          <div className="flex items-center gap-3 mb-4">
+    <div className={`min-h-screen bg-white dark:bg-gray-900 ${isDarkMode ? "dark" : ""}`}>
+      <header className="sticky top-0 z-20 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
             <Button
               variant="secondary"
-              onClick={handleBack}
+              onClick={onBack}
               className="p-2 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
             >
               <ArrowLeft size={20} />
             </Button>
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-gray-800 dark:text-white">CV Management</h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Professional CV tools powered by AI</p>
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">CV Management</h1>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Make every CV actionable with upload, ATS, optimization, and AI generation tools.
+              </p>
             </div>
-            <FileText size={24} className="text-primary" />
           </div>
-
-          {/* Navigation Buttons */}
-          {activeSection !== 'overview' && (
-            <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="flex flex-wrap gap-2">
+            {(Object.keys(SECTION_LABELS) as Section[]).map((value) => (
               <button
-                onClick={() => setActiveSection('overview')}
-                className="px-4 py-2 rounded-2xl text-sm font-medium whitespace-nowrap transition-all bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                key={value}
+                type="button"
+                onClick={() => setSection(value)}
+                className={`rounded-xl px-3 py-2 text-xs font-medium ${
+                  section === value
+                    ? "bg-primary text-white shadow-sm"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                }`}
               >
-                ← Overview
+                {SECTION_LABELS[value]}
               </button>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
-      </div>
+      </header>
 
-      <div className="p-4">
-        {activeSection === 'overview' && renderOverview()}
-        {activeSection === 'upload' && renderUploadSection()}
-        {activeSection === 'optimize' && renderOptimizeSection()}
-        {activeSection === 'ats' && renderATSSection()}
-        {activeSection === 'generate' && renderGenerateSection()}
-      </div>
+      <main className="mx-auto max-w-6xl space-y-4 p-4">
+        {renderFeedback()}
+        {renderContent()}
+      </main>
     </div>
   );
 };
