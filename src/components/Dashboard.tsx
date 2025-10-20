@@ -85,6 +85,57 @@ const Dashboard: React.FC<DashboardProps> = ({
     };
   }, [showMenu]);
 
+  const getRandomQuote = () => {
+    const quotes = [
+      "Success is the sum of small efforts repeated day in and day out. - Robert Collier",
+      "The only way to do great work is to love what you do. - Steve Jobs",
+      "Don't watch the clock; do what it does. Keep going. - Sam Levenson",
+      "Believe you can and you're halfway there. - Theodore Roosevelt",
+      "The future belongs to those who believe in the beauty of their dreams. - Eleanor Roosevelt",
+      "It does not matter how slowly you go as long as you do not stop. - Confucius",
+      "Everything you've ever wanted is on the other side of fear. - George Addair",
+      "Success is not final, failure is not fatal: It is the courage to continue that counts. - Winston Churchill",
+      "The only limit to our realization of tomorrow is our doubts of today. - Franklin D. Roosevelt",
+      "You are never too old to set another goal or to dream a new dream. - C.S. Lewis",
+      "The secret of getting ahead is getting started. - Mark Twain",
+      "The harder I work, the more luck I seem to have. - Thomas Jefferson",
+      "The way to get started is to quit talking and begin doing. - Walt Disney",
+      "Don't let yesterday take up too much of today. - Will Rogers",
+      "The journey of a thousand miles begins with one step. - Lao Tzu"
+    ];
+    
+    return quotes[Math.floor(Math.random() * quotes.length)];
+  };
+
+  const getGreetingMessage = (name: string) => {
+    const currentHour = new Date().getHours();
+    
+    let timeGreeting = '';
+    if (currentHour >= 5 && currentHour < 12) {
+      timeGreeting = 'Good morning';
+    } else if (currentHour >= 12 && currentHour < 17) {
+      timeGreeting = 'Good afternoon';
+    } else if (currentHour >= 17 && currentHour < 21) {
+      timeGreeting = 'Good evening';
+    } else {
+      timeGreeting = 'Good night';
+    }
+    
+    const greetingVariations = [
+      `${timeGreeting}, ${name}!`,
+      `Hello, ${name}!`,
+      `Hey, ${name}!`,
+      `Greetings, ${name}!`,
+      `Welcome back, ${name}!`,
+      `Hello again, ${name}!`,
+      `${timeGreeting}!`,
+      `Hello, ${name}!`,
+      `Hey, ${name}!`
+    ];
+    
+    return greetingVariations[Math.floor(Math.random() * greetingVariations.length)];
+  };
+
   const opportunities = [
     {
       id: '1',
@@ -502,16 +553,14 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </header>
         {/* Greeting and Daily Motivation Section */}
-        <div className="px-6 py-6">
-          <div className="mb-6">
-            <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Good day, {user?.name?.split(' ')[0] ?? 'there'}!
+        <div className="px-6 py-3">
+          <div className={`rounded-2xl p-6 ${isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-900/90 border border-gray-700/50' : 'bg-gradient-to-br from-white to-gray-50 border border-gray-200'}`}>
+            <h1 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
+              {getGreetingMessage(user?.name?.split(' ')[0] ?? 'there')}
             </h1>
-            <div className={`mt-2 p-4 rounded-2xl ${isDarkMode ? 'bg-gray-800/80' : 'bg-white/80'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <p className={`text-sm italic ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                "Success is the sum of small efforts repeated day in and day out." - Robert Collier
-              </p>
-            </div>
+            <p className={`text-sm italic ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              "{getRandomQuote()}"
+            </p>
           </div>
         </div>
 
@@ -589,7 +638,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               // Dark mode colors
               switch(index) {
                 case 0: // Active goals
-                  bgColor = '!bg-teal-900/20';
+                  bgColor = '!bg-rose-900/20';
                   break;
                 case 1: // Consistency
                   bgColor = '!bg-green-900/20';
@@ -607,7 +656,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               // Light mode colors
               switch(index) {
                 case 0: // Active goals
-                  bgColor = '!bg-teal-50';
+                  bgColor = '!bg-rose-50';
                   break;
                 case 1: // Consistency
                   bgColor = '!bg-green-50';
