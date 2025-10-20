@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import type { ChangeEvent, FormEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { ArrowLeft, User, Mail, Phone, MapPin, Calendar, Save, Camera } from 'lucide-react';
 import Button from './ui/Button';
 import Card from './ui/Card';
 import { useDarkMode } from '../hooks/useDarkMode';
+import { usePersistentState } from '../hooks/usePersistentState';
 
 interface EditProfileScreenProps {
   user: { name: string; age: number } | null;
@@ -10,26 +12,48 @@ interface EditProfileScreenProps {
   onBack: () => void;
 }
 
+type ProfileFormData = {
+  name: string;
+  age: string;
+  email: string;
+  phone: string;
+  location: string;
+  bio: string;
+  interests: string;
+  goals: string;
+};
+
+const DEFAULT_FORM: ProfileFormData = {
+  name: '',
+  age: '',
+  email: 'user@example.com',
+  phone: '+234 123 456 7890',
+  location: 'Lagos, Nigeria',
+  bio: 'Passionate about technology and personal growth. Always looking for new opportunities to learn and make an impact.',
+  interests: 'Technology, Entrepreneurship, Education',
+  goals: 'Complete Python Course, Apply to Scholarships, Build Portfolio'
+};
+
 const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, setUser, onBack }) => {
-  const [formData, setFormData] = useState({
-    name: user?.name || '',
-    age: user?.age.toString() || '',
-    email: 'user@example.com',
-    phone: '+234 123 456 7890',
-    location: 'Lagos, Nigeria',
-    bio: 'Passionate about technology and personal growth. Always looking for new opportunities to learn and make an impact.',
-    interests: 'Technology, Entrepreneurship, Education',
-    goals: 'Complete Python Course, Apply to Scholarships, Build Portfolio'
-  });
-
   const { isDarkMode } = useDarkMode();
+  const [formData, setFormData] = usePersistentState<ProfileFormData>('profile.formData', {
+    ...DEFAULT_FORM,
+    name: user?.name || DEFAULT_FORM.name,
+    age: user?.age?.toString() || DEFAULT_FORM.age
+  });
+  const [profileImage, setProfileImage] = usePersistentState<string | null>('profile.profileImage', null);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleSave = () => {
-    if (formData.name && formData.age) {
-      setUser({ name: formData.name, age: parseInt(formData.age) });
-      onBack();
+  useEffect(() => {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        name: user.name,
+        age: user.age.toString()
+      }));
     }
-  };
+  }, [user, setFormData]);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -40,9 +64,66 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, setUser, on
     onBack();
   };
 
+  const handleFieldChange =
+    (field: keyof ProfileFormData) =>
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const value = event.target.value;
+      setFormData((prev) => ({
+        ...prev,
+        [field]: value
+      }));
+    };
+
+  const triggerImagePicker = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setSaveMessage('Please choose a valid image file.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setProfileImage(reader.result as string);
+      setSaveMessage('Profile photo updated.');
+      setTimeout(() => setSaveMessage(null), 3500);
+    };
+    reader.onerror = () => {
+      setSaveMessage('Something went wrong while reading the file. Please try again.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = (event?: FormEvent<HTMLFormElement> | ReactMouseEvent<HTMLButtonElement>) => {
+    event?.preventDefault();
+    event?.stopPropagation();
+
+    if (!formData.name || !formData.age) {
+      setSaveMessage('Please complete the required fields before saving.');
+      return;
+    }
+
+    const parsedAge = parseInt(formData.age, 10);
+    if (Number.isNaN(parsedAge)) {
+      setSaveMessage('Age must be a number.');
+      return;
+    }
+
+    setUser({ name: formData.name, age: parsedAge });
+    setSaveMessage('Your profile has been updated successfully.');
+    setTimeout(() => setSaveMessage(null), 3500);
+    onBack();
+  };
+
   return (
     <div className={`min-h-screen bg-white dark:bg-gray-900 animate-fade-in ${isDarkMode ? 'dark' : ''}`}>
-      {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
         <div className="p-4">
           <div className="flex items-center gap-3">
@@ -62,27 +143,43 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, setUser, on
               Save
             </Button>
           </div>
+          {saveMessage && (
+            <p className="mt-2 text-sm text-primary">{saveMessage}</p>
+          )}
         </div>
       </div>
 
-      <div className="p-4 space-y-6">
-        {/* Profile Picture */}
+      <form onSubmit={(event) => handleSave(event)} className="p-4 space-y-6">
         <Card className="dark:bg-gray-800 dark:border-gray-700">
           <div className="text-center">
             <div className="relative inline-block mb-4">
-              <div className="w-24 h-24 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center mx-auto">
-                <User size={40} className="text-white" />
+              <div className="w-24 h-24 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center mx-auto overflow-hidden">
+                {profileImage ? (
+                  <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <User size={40} className="text-white" />
+                )}
               </div>
-              <button className="absolute -bottom-1 -right-1 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white hover:bg-blue-600 transition-colors">
+              <button
+                type="button"
+                onClick={triggerImagePicker}
+                className="absolute -bottom-1 -right-1 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white hover:bg-blue-600 transition-colors"
+              >
                 <Camera size={16} />
               </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageUpload}
+              />
             </div>
             <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Profile Picture</h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">Click the camera icon to update your photo</p>
           </div>
         </Card>
 
-        {/* Basic Information */}
         <Card className="dark:bg-gray-800 dark:border-gray-700">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Basic Information</h3>
           <div className="space-y-4">
@@ -95,7 +192,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, setUser, on
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={handleFieldChange('name')}
                   className="w-full pl-12 pr-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                   placeholder="Enter your full name"
                 />
@@ -111,11 +208,11 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, setUser, on
                 <input
                   type="number"
                   value={formData.age}
-                  onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                  onChange={handleFieldChange('age')}
                   min="16"
                   max="30"
                   className="w-full pl-12 pr-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                  placeholder="Your age"
+                  placeholder="Enter your age"
                 />
               </div>
             </div>
@@ -129,7 +226,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, setUser, on
                 <input
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={handleFieldChange('email')}
                   className="w-full pl-12 pr-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                   placeholder="Enter your email"
                 />
@@ -145,7 +242,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, setUser, on
                 <input
                   type="tel"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={handleFieldChange('phone')}
                   className="w-full pl-12 pr-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                   placeholder="Enter your phone number"
                 />
@@ -161,7 +258,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, setUser, on
                 <input
                   type="text"
                   value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  onChange={handleFieldChange('location')}
                   className="w-full pl-12 pr-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                   placeholder="Enter your location"
                 />
@@ -170,7 +267,6 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, setUser, on
           </div>
         </Card>
 
-        {/* About */}
         <Card className="dark:bg-gray-800 dark:border-gray-700">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">About You</h3>
           <div className="space-y-4">
@@ -180,7 +276,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, setUser, on
               </label>
               <textarea
                 value={formData.bio}
-                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                onChange={handleFieldChange('bio')}
                 className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-none"
                 placeholder="Tell us about yourself..."
                 rows={4}
@@ -194,7 +290,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, setUser, on
               <input
                 type="text"
                 value={formData.interests}
-                onChange={(e) => setFormData({ ...formData, interests: e.target.value })}
+                onChange={handleFieldChange('interests')}
                 className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                 placeholder="Your interests (comma separated)"
               />
@@ -206,7 +302,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, setUser, on
               </label>
               <textarea
                 value={formData.goals}
-                onChange={(e) => setFormData({ ...formData, goals: e.target.value })}
+                onChange={handleFieldChange('goals')}
                 className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-none"
                 placeholder="What are your current goals?"
                 rows={3}
@@ -215,14 +311,13 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, setUser, on
           </div>
         </Card>
 
-        {/* Save Button */}
         <div className="pt-4">
-          <Button onClick={handleSave} className="w-full" disabled={!formData.name || !formData.age}>
+          <Button type="submit" className="w-full" disabled={!formData.name || !formData.age}>
             <Save size={16} className="mr-2" />
             Save Changes
           </Button>
         </div>
-      </div>
+      </form>
     </div>
   );
 };

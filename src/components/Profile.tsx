@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   User, 
   Settings, 
@@ -27,6 +27,7 @@ import NotificationInbox from './NotificationInbox';
 import { Screen } from '../App';
 import { useDarkMode } from '../hooks/useDarkMode';
 import CVManagement from './CVManagement';
+import { usePersistentState } from '../hooks/usePersistentState';
 
 interface ProfileProps {
   user: { name: string; age: number } | null;
@@ -35,19 +36,57 @@ interface ProfileProps {
   onLogout: () => void;
 }
 
+type StoredProfileData = {
+  name: string;
+  age: string;
+  email: string;
+  phone: string;
+  location: string;
+  bio: string;
+  interests: string;
+  goals: string;
+};
+
+const PROFILE_STORAGE_DEFAULT: StoredProfileData = {
+  name: '',
+  age: '',
+  email: 'user@example.com',
+  phone: '+234 123 456 7890',
+  location: 'Lagos, Nigeria',
+  bio: 'Passionate about technology and personal growth. Always looking for new opportunities to learn and make an impact.',
+  interests: 'Technology, Entrepreneurship, Education',
+  goals: 'Complete Python Course, Apply to Scholarships, Build Portfolio'
+};
+
 const Profile: React.FC<ProfileProps> = ({ user, setUser, onNavigate, onLogout }) => {
+  const [storedProfile, setStoredProfile] = usePersistentState<StoredProfileData>('profile.formData', PROFILE_STORAGE_DEFAULT);
+  const [profileImage] = usePersistentState<string | null>('profile.profileImage', null);
   const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(user?.name || '');
-  const [editAge, setEditAge] = useState(user?.age.toString() || '');
-  const [bio, setBio] = useState("Passionate about technology and personal growth. Always looking for new opportunities to learn and make an impact.");
+  const [editName, setEditName] = useState(user?.name || storedProfile.name || '');
+  const [editAge, setEditAge] = useState(user?.age?.toString() || storedProfile.age || '');
+  const [bio, setBio] = useState(storedProfile.bio || PROFILE_STORAGE_DEFAULT.bio);
   const [showCVManagement, setShowCVManagement] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount] = useState(3); // This would come from your notification state
   const { isDarkMode } = useDarkMode();
 
+  useEffect(() => {
+    setEditName(user?.name || storedProfile.name || '');
+    setEditAge(user?.age?.toString() || storedProfile.age || '');
+  }, [user, storedProfile.name, storedProfile.age]);
+
+  useEffect(() => {
+    setBio(storedProfile.bio || PROFILE_STORAGE_DEFAULT.bio);
+  }, [storedProfile.bio]);
+
   const handleSave = () => {
     if (editName && editAge) {
       setUser({ name: editName, age: parseInt(editAge) });
+      setStoredProfile((prev) => ({
+        ...prev,
+        name: editName,
+        age: editAge
+      }));
       setIsEditing(false);
     }
   };
@@ -74,6 +113,9 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, onNavigate, onLogout }
     }
   ];
 
+  const displayName = user?.name || storedProfile.name || 'Your Name';
+  const displayAge = user?.age ?? (storedProfile.age ? parseInt(storedProfile.age, 10) : null);
+
   if (showCVManagement) {
     return <CVManagement onBack={() => setShowCVManagement(false)} />;
   }
@@ -84,16 +126,22 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, onNavigate, onLogout }
       <Card className="dark:bg-gray-800 dark:border-gray-700 shadow-sm">
         <div className="text-center">
           <div className="relative inline-block mb-4">
-            <div className="w-20 h-20 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center mx-auto shadow-lg">
-              <User size={32} className="text-white" />
+            <div className="w-20 h-20 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center mx-auto shadow-lg overflow-hidden">
+              {profileImage ? (
+                <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <User size={32} className="text-white" />
+              )}
             </div>
             <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
           </div>
           
           {!isEditing ? (
             <div>
-              <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">{user?.name}</h1>
-              <p className="text-gray-600 dark:text-gray-400 mb-2">{user?.age} years old</p>
+              <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">{displayName}</h1>
+              <p className="text-gray-600 dark:text-gray-400 mb-2">
+                {displayAge !== null && !Number.isNaN(displayAge) ? `${displayAge} years old` : 'Age not set'}
+              </p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 max-w-xs mx-auto leading-relaxed">{bio}</p>
               <Button
                 variant="secondary"

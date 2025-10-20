@@ -21,6 +21,7 @@ import Button from './ui/Button';
 import NotificationInbox from './NotificationInbox';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useGoals } from '../hooks/useGoals';
+import { useOpportunities } from '../hooks/useOpportunities';
 
 interface DashboardProps {
   user: { name: string; age: number } | null;
@@ -41,30 +42,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   onAddGoal,
   onViewAllGoals
 }) => {
-  const [recentAchievements] = useState([
-    {
-      id: '1',
-      title: 'Set up Python development environment',
-      icon: <CheckCircle2 size={16} />,
-      date: 'Today',
-      type: 'task_completed'
-    },
-    {
-      id: '2',
-      title: 'Complete Python basics tutorial',
-      icon: <CheckCircle2 size={16} />,
-      date: 'Today',
-      type: 'task_completed'
-    },
-    {
-      id: '3',
-      title: 'Profile Complete',
-      icon: <Award size={16} />,
-      date: 'Yesterday',
-      type: 'milestone'
-    }
-  ]);
-
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount] = useState(3);
   const [showMenu, setShowMenu] = useState(false);
@@ -136,116 +113,17 @@ const Dashboard: React.FC<DashboardProps> = ({
     return greetingVariations[Math.floor(Math.random() * greetingVariations.length)];
   };
 
-  const opportunities = [
-    {
-      id: '1',
-      title: 'African Leadership Academy Scholarship',
-      organization: 'African Leadership Academy',
-      category: 'Education',
-      deadline: 'March 15, 2024',
-      location: 'South Africa',
-      match: 95,
-      difficulty: 'Hard' as const,
-      applicants: '10,000+',
-      successRate: '5%',
-      description:
-        'A comprehensive scholarship program for academically talented yet economically disadvantaged young people from Africa.',
-      requirements: [
-        'African citizenship',
-        'Demonstrated academic excellence',
-        'Financial need',
-        'Leadership potential',
-        'Commitment to giving back to Africa'
-      ],
-      benefits: [
-        'Full tuition coverage',
-        'Living expenses',
-        'Books and supplies',
-        'Leadership development',
-        'Mentorship program'
-      ],
-      applicationProcess: [
-        'Complete online application',
-        'Submit academic transcripts',
-        'Provide financial documentation',
-        'Write personal essays',
-        'Attend interview if selected'
-      ],
-      image: 'https://images.pexels.com/photos/5212345/pexels-photo-5212345.jpeg'
-    },
-    {
-      id: '2',
-      title: 'Tech Skills Bootcamp - Lagos',
-      organization: 'TechPoint Africa',
-      category: 'Skills',
-      deadline: 'February 28, 2024',
-      location: 'Lagos, Nigeria',
-      match: 88,
-      difficulty: 'Medium' as const,
-      applicants: '2,000+',
-      successRate: '25%',
-      description:
-        '6-month intensive programming bootcamp designed to transform beginners into job-ready developers.',
-      requirements: [
-        'Basic computer literacy',
-        'Commitment to full-time learning',
-        'Age 18-35',
-        'Passion for technology',
-        'Available for 6 months'
-      ],
-      benefits: [
-        'Full-stack development training',
-        'Job placement assistance',
-        'Industry mentorship',
-        'Project portfolio development',
-        'Networking opportunities'
-      ],
-      applicationProcess: [
-        'Submit online application',
-        'Complete coding challenge',
-        'Attend virtual interview',
-        'Participate in orientation',
-        'Begin intensive training'
-      ],
-      image: 'https://images.pexels.com/photos/3861969/pexels-photo-3861969.jpeg'
-    },
-    {
-      id: '3',
-      title: 'Young Entrepreneurs Network',
-      organization: 'African Entrepreneurship Network',
-      category: 'Networking',
-      deadline: 'Ongoing',
-      location: 'Pan-African',
-      match: 82,
-      difficulty: 'Easy' as const,
-      applicants: '5,000+',
-      successRate: '60%',
-      description:
-        'Connect with like-minded entrepreneurs across Africa and access resources for business growth.',
-      requirements: [
-        'African resident or citizen',
-        'Business idea or existing business',
-        'Age 18-40',
-        'Commitment to networking',
-        'Entrepreneurial mindset'
-      ],
-      benefits: [
-        'Access to mentor network',
-        'Business development resources',
-        'Funding opportunities',
-        'Regular networking events',
-        'Online community access'
-      ],
-      applicationProcess: [
-        'Create profile on platform',
-        'Submit business pitch',
-        'Connect with mentors',
-        'Participate in events',
-        'Access resources and funding'
-      ],
-      image: 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg'
-    }
-  ];
+  const {
+    data: opportunityFeed,
+    loading: opportunitiesLoading,
+    error: opportunitiesError,
+    refresh: refreshOpportunities
+  } = useOpportunities();
+
+  const featuredOpportunities = useMemo(
+    () => opportunityFeed.slice(0, 3),
+    [opportunityFeed]
+  );
 
   const formatDateShort = (deadline?: string) => {
     if (!deadline) {
@@ -382,6 +260,46 @@ const Dashboard: React.FC<DashboardProps> = ({
   const completionRate = openGoals.length
     ? Math.round((completedGoals.length / openGoals.length) * 100)
     : 0;
+
+  const goalCompletionWins = [...completedGoals]
+    .sort((a, b) => {
+      const aTime = new Date(a.completedAt ?? a.updatedAt).getTime();
+      const bTime = new Date(b.completedAt ?? b.updatedAt).getTime();
+      return bTime - aTime;
+    })
+    .map((goal) => ({
+      id: `goal-completed-${goal.id}`,
+      title: `Completed ${goal.title}`,
+      icon: <CheckCircle2 size={16} />,
+      date: formatUpdatedAt(goal.completedAt ?? goal.updatedAt),
+      type: 'goal_completed'
+    }));
+
+  const fallbackWins = [
+    {
+      id: 'static-1',
+      title: 'Set up Python development environment',
+      icon: <CheckCircle2 size={16} />,
+      date: 'Today',
+      type: 'task_completed'
+    },
+    {
+      id: 'static-2',
+      title: 'Complete Python basics tutorial',
+      icon: <CheckCircle2 size={16} />,
+      date: 'Today',
+      type: 'task_completed'
+    },
+    {
+      id: 'static-3',
+      title: 'Profile Complete',
+      icon: <Award size={16} />,
+      date: 'Yesterday',
+      type: 'milestone'
+    }
+  ];
+
+  const recentWins = goalCompletionWins.length > 0 ? goalCompletionWins : fallbackWins;
 
   const nextDeadlineGoal = useMemo(() => {
     const withDeadline = activeGoals.filter((goal) => goal.deadline);
@@ -911,32 +829,70 @@ const Dashboard: React.FC<DashboardProps> = ({
               View all
             </Button>
           </div>
-          <div className="mt-4 space-y-4">
-            {opportunities.map((opp, index) => (
-              <div
-                key={opp.id}
-                className="rounded-2xl border border-subtle bg-surface-layer p-4 transition hover:border-brand-200 hover:shadow-elevated"
-                style={{ animationDelay: `${index * 100}ms` }}
-                onClick={() => onOpportunityClick(opp)}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-2">
-                    <h3 className="text-base font-semibold">{opp.title}</h3>
-                    <p className="text-sm text-soft">{opp.description.slice(0, 110)}...</p>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                      <span className="rounded-full bg-brand-600/10 px-3 py-1 text-brand-600">{opp.category}</span>
-                      <span>Due {opp.deadline}</span>
-                      <span>{opp.location}</span>
+            <div className="mt-4 space-y-4">
+              {opportunitiesLoading &&
+                Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={`opp-skeleton-${index}`}
+                    className="rounded-2xl border border-subtle bg-surface-layer p-4 animate-pulse"
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 w-3/4 rounded bg-gray-200 dark:bg-gray-700" />
+                        <div className="h-3 w-full rounded bg-gray-200 dark:bg-gray-700" />
+                        <div className="h-3 w-2/3 rounded bg-gray-200 dark:bg-gray-700" />
+                      </div>
+                      <div className="h-4 w-12 rounded bg-gray-200 dark:bg-gray-700" />
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 text-right text-sm font-semibold text-success">
-                    {opp.match}% match
-                    <ChevronRight size={18} className="text-muted" />
-                  </div>
+                ))}
+
+              {!opportunitiesLoading &&
+                featuredOpportunities.map((opportunity, index) => (
+                  <button
+                    key={opportunity.id}
+                    type="button"
+                    className="w-full rounded-2xl border border-subtle bg-surface-layer p-4 text-left transition hover:border-brand-200 hover:shadow-elevated"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                    onClick={() => onOpportunityClick(opportunity)}
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className="space-y-2 flex-1 min-w-0">
+                        <h3 className="text-base font-semibold truncate">{opportunity.title}</h3>
+                        <p className="text-sm text-soft leading-tight">{opportunity.description}</p>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                          <span className="rounded-full bg-brand-600/10 px-3 py-1 text-brand-600">
+                            {opportunity.category}
+                          </span>
+                          {opportunity.deadline && <span>Due {opportunity.deadline}</span>}
+                          <span>{opportunity.location}</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end justify-center flex-shrink-0">
+                        <div className="text-sm font-semibold text-success">
+                          {Math.round(opportunity.match)}% match
+                        </div>
+                        <ChevronRight size={18} className="text-muted flex-shrink-0" />
+                      </div>
+                    </div>
+                  </button>
+                ))}
+
+              {!opportunitiesLoading && featuredOpportunities.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-subtle bg-surface-layer/50 p-6 text-center">
+                  <p className="text-sm text-soft">
+                    {opportunitiesError
+                      ? "We couldn't load personalised opportunities right now."
+                      : 'No personalised opportunities yet. Check back soon.'}
+                  </p>
+                  {opportunitiesError && (
+                    <Button variant="secondary" size="sm" className="mt-3" onClick={refreshOpportunities}>
+                      Try again
+                    </Button>
+                  )}
                 </div>
-              </div>
-            ))}
-          </div>
+              )}
+            </div>
         </Card>
 
         <Card className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} p-6`}>
@@ -950,7 +906,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             </Button>
           </div>
           <div className="mt-3 space-y-1">
-            {recentAchievements.slice(0, 4).map((achievement, index) => (
+            {recentWins.map((achievement, index) => (
               <div
                 key={achievement.id}
                 className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition hover:bg-gray-100 dark:hover:bg-gray-700/60"
@@ -975,7 +931,3 @@ const Dashboard: React.FC<DashboardProps> = ({
 };
 
 export default Dashboard;
-
-
-
-

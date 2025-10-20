@@ -451,22 +451,70 @@ const CVManagement: React.FC<CVManagementProps> = ({ onBack }) => {
         </p>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="dark:bg-gray-800 dark:border-gray-700 p-5 text-center">
+      {/* Stats Cards - Horizontal on mobile */}
+      <div className="flex overflow-x-auto gap-4 pb-2 snap-x snap-mandatory">
+        <Card className="dark:bg-gray-800 dark:border-gray-700 p-5 text-center min-w-[140px] snap-center">
           <div className="text-sm text-gray-500 dark:text-gray-400">Documents</div>
           <div className="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">{records.length}</div>
         </Card>
-        <Card className="dark:bg-gray-800 dark:border-gray-700 p-5 text-center">
+        <Card className="dark:bg-gray-800 dark:border-gray-700 p-5 text-center min-w-[140px] snap-center">
           <div className="text-sm text-gray-500 dark:text-gray-400">Analyzed</div>
           <div className="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">
             {records.filter((item) => item.analysis).length}
           </div>
         </Card>
-        <Card className="dark:bg-gray-800 dark:border-gray-700 p-5 text-center">
+        <Card className="dark:bg-gray-800 dark:border-gray-700 p-5 text-center min-w-[140px] snap-center">
           <div className="text-sm text-gray-500 dark:text-gray-400">Optimized</div>
           <div className="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">
             {records.filter((item) => item.optimization).length}
           </div>
+        </Card>
+      </div>
+
+      {/* Feature Widgets */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card 
+          className="dark:bg-gray-800 dark:border-gray-700 p-5 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          onClick={() => setSection('analysis')}
+        >
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+            <BarChart3 size={20} />
+          </div>
+          <h3 className="mt-3 font-semibold text-gray-900 dark:text-white">ATS</h3>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Analyze CVs for ATS readiness</p>
+        </Card>
+
+        <Card 
+          className="dark:bg-gray-800 dark:border-gray-700 p-5 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          onClick={() => setSection('library')}
+        >
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">
+            <Folder size={20} />
+          </div>
+          <h3 className="mt-3 font-semibold text-gray-900 dark:text-white">Library</h3>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Manage your CV collection</p>
+        </Card>
+
+        <Card 
+          className="dark:bg-gray-800 dark:border-gray-700 p-5 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          onClick={() => setSection('upload')}
+        >
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
+            <Upload size={20} />
+          </div>
+          <h3 className="mt-3 font-semibold text-gray-900 dark:text-white">Upload</h3>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Add new CV documents</p>
+        </Card>
+
+        <Card 
+          className="dark:bg-gray-800 dark:border-gray-700 p-5 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          onClick={() => setSection('optimize')}
+        >
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400">
+            <Zap size={20} />
+          </div>
+          <h3 className="mt-3 font-semibold text-gray-900 dark:text-white">Optimize</h3>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Improve your CV content</p>
         </Card>
       </div>
     </div>
