@@ -582,19 +582,60 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       <div className="px-6 py-6">
         <div className="grid grid-cols-2 gap-5 sm:grid-cols-2 lg:grid-cols-2">
-          {stats.map((stat, index) => (
+          {stats.map((stat, index) => {
+            // Define different background colors for each card based on index
+            let bgColor = '';
+            if (isDarkMode) {
+              // Dark mode colors
+              switch(index) {
+                case 0: // Active goals
+                  bgColor = '!bg-teal-900/20';
+                  break;
+                case 1: // Consistency
+                  bgColor = '!bg-green-900/20';
+                  break;
+                case 2: // Avg progress
+                  bgColor = '!bg-violet-800/30';
+                  break;
+                case 3: // Next deadline
+                  bgColor = '!bg-amber-900/20';
+                  break;
+                default:
+                  bgColor = 'bg-gray-800/70';
+              }
+            } else {
+              // Light mode colors
+              switch(index) {
+                case 0: // Active goals
+                  bgColor = '!bg-teal-50';
+                  break;
+                case 1: // Consistency
+                  bgColor = '!bg-green-50';
+                  break;
+                case 2: // Avg progress
+                  bgColor = '!bg-violet-100';
+                  break;
+                case 3: // Next deadline
+                  bgColor = '!bg-amber-50';
+                  break;
+                default:
+                  bgColor = 'bg-gradient-to-br from-white to-primary/5';
+              }
+            }
+            
+            return (
             <Card
               key={stat.label}
-              className={`border-none p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg ${
-                isDarkMode ? 'bg-gray-800/70' : 'bg-gradient-to-br from-white to-primary/5'
-              }`}
+              className={`p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg rounded-2xl ${
+                isDarkMode ? 'border border-gray-700' : 'border border-gray-200'
+              } ${bgColor}`}
               style={{ animationDelay: `${index * 80}ms` }}
             >
               <p className="text-xs uppercase tracking-wide text-muted">{stat.label}</p>
               <p className="mt-3 text-2xl font-semibold text-brand-600">{stat.value}</p>
               <p className="mt-2 text-xs text-muted">{stat.helper}</p>
             </Card>
-          ))}
+          )})}
         </div>
       </div>
 
