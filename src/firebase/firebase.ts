@@ -2,17 +2,21 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
+// ✅ Load Firebase config from environment variables
 const firebaseConfig = {
-  apiKey: "AIzaSyBo1I-yAYmCM8Rw_csMMOl_Y6PlGbdRxkw",
-  authDomain: "edutu-d4a5e.firebaseapp.com",
-  projectId: "edutu-d4a5e",
-  storageBucket: "edutu-d4a5e.appspot.com",
-  messagingSenderId: "351947047932",
-  appId: "1:351947047932:web:e67afaea8d0d9cd2e06879",
-  measurementId: "G-HR7N19BH02"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
+// ✅ Initialize Firebase
 const app = initializeApp(firebaseConfig);
+
+// ✅ Export reusable Firebase services
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
