@@ -97,7 +97,7 @@ const CommunityMarketplace: React.FC<CommunityMarketplaceProps> = ({
       description: 'Complete journey from beginner to landing a software engineering role at Google. Includes coding practice, system design, and interview preparation.',
       creator: {
         name: 'Amara Okafor',
-        avatar: 'ğŸ‘©ğŸ¾â€ğŸ’»',
+        avatar: '=ƒæ¬=ƒÅ+GÇì=ƒÆ+',
         title: 'Software Engineer at Google',
         verified: true,
         followers: 15420
@@ -122,7 +122,7 @@ const CommunityMarketplace: React.FC<CommunityMarketplaceProps> = ({
       description: 'Step-by-step guide to building a successful e-commerce business from idea to $1M revenue. Real strategies that worked.',
       creator: {
         name: 'Kwame Asante',
-        avatar: 'ğŸ‘¨ğŸ¿â€ğŸ’¼',
+        avatar: '=ƒæ¿=ƒÅ+GÇì=ƒÆ+',
         title: 'Serial Entrepreneur & CEO',
         verified: true,
         followers: 23100
@@ -147,7 +147,7 @@ const CommunityMarketplace: React.FC<CommunityMarketplaceProps> = ({
       description: 'Complete roadmap to becoming a Rhodes Scholar, including academic excellence, leadership development, and application strategy.',
       creator: {
         name: 'Fatima Hassan',
-        avatar: 'ğŸ‘©ğŸ½â€ğŸ“',
+        avatar: '=ƒæ¬=ƒÅ+GÇì=ƒÄô',
         title: 'Rhodes Scholar & Oxford Graduate',
         verified: true,
         followers: 8750
@@ -172,7 +172,7 @@ const CommunityMarketplace: React.FC<CommunityMarketplaceProps> = ({
       description: 'Complete fitness journey from couch to completing a marathon. Includes training plans, nutrition, and mental preparation.',
       creator: {
         name: 'Chidi Nwosu',
-        avatar: 'ğŸ‘¨ğŸ¿â€âš•ï¸',
+        avatar: '=ƒæ¿=ƒÅ+GÇìGÜòn+Å',
         title: 'Fitness Coach & Marathon Runner',
         verified: true,
         followers: 12300
@@ -197,7 +197,7 @@ const CommunityMarketplace: React.FC<CommunityMarketplaceProps> = ({
       description: 'Proven strategy to grow from 0 to 1 million YouTube subscribers. Content creation, audience building, and monetization.',
       creator: {
         name: 'Zara Mwangi',
-        avatar: 'ğŸ‘©ğŸ¾â€ğŸ¨',
+        avatar: '=ƒæ¬=ƒÅ+GÇì=ƒÄ¿',
         title: 'Content Creator & Influencer',
         verified: true,
         followers: 45600
@@ -222,7 +222,7 @@ const CommunityMarketplace: React.FC<CommunityMarketplaceProps> = ({
       description: 'Transform from shy introvert to confident public speaker and leader. Techniques used to speak at TEDx and lead teams.',
       creator: {
         name: 'Kofi Mensah',
-        avatar: 'ğŸ‘¨ğŸ¿â€ğŸ’¼',
+        avatar: '=ƒæ¿=ƒÅ+GÇì=ƒÆ+',
         title: 'TEDx Speaker & Leadership Coach',
         verified: true,
         followers: 18900
@@ -247,7 +247,7 @@ const CommunityMarketplace: React.FC<CommunityMarketplaceProps> = ({
       description: 'Complete career change from marketing to data science at a Fortune 500 company. No prior technical background required.',
       creator: {
         name: 'Aisha Kone',
-        avatar: 'ğŸ‘©ğŸ½â€ğŸ’»',
+        avatar: '=ƒæ¬=ƒÅ+GÇì=ƒÆ+',
         title: 'Senior Data Scientist',
         verified: true,
         followers: 9800
@@ -272,7 +272,7 @@ const CommunityMarketplace: React.FC<CommunityMarketplaceProps> = ({
       description: 'How I built a personal brand that generates 7-figures annually through speaking, consulting, and digital products.',
       creator: {
         name: 'Tunde Adebayo',
-        avatar: 'ğŸ‘¨ğŸ¿â€ğŸ’¼',
+        avatar: '=ƒæ¿=ƒÅ+GÇì=ƒÆ+',
         title: 'Personal Brand Strategist',
         verified: true,
         followers: 32400
@@ -616,7 +616,7 @@ const CommunityMarketplace: React.FC<CommunityMarketplaceProps> = ({
 
           {filteredRoadmaps.length === 0 && (
             <div className="text-center py-12">
-              <div className="text-4xl mb-4">ğŸ”</div>
+              <div className="text-4xl mb-4">=ƒöì</div>
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">No roadmaps found</h3>
               <p className="text-gray-600 dark:text-gray-400">Try adjusting your search or filter criteria</p>
             </div>
