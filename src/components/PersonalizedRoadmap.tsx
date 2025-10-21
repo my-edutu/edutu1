@@ -397,13 +397,11 @@ const PersonalizedRoadmap: React.FC<PersonalizedRoadmapProps> = ({
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Overall Progress</span>
               <span className="text-sm font-bold text-primary">{progress}% Complete</span>
             </div>
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+            <div className="w-full h-3 overflow-hidden rounded-full bg-neutral-200/70 dark:bg-neutral-700/40 backdrop-blur-sm">
               <div
-                className="bg-gradient-to-r from-primary to-accent h-3 rounded-full transition-all duration-500 relative overflow-hidden"
+                className="relative h-full rounded-full bg-gradient-to-r from-brand-500 via-brand-400 to-accent-400 shadow-[0_12px_32px_-18px_rgba(6,182,212,0.9)] transition-[width] duration-500 ease-out"
                 style={{ width: `${progress}%` }}
-              >
-                <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
-              </div>
+              />
             </div>
           </div>
 

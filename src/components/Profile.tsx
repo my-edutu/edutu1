@@ -28,6 +28,7 @@ import { Screen } from '../App';
 import { useDarkMode } from '../hooks/useDarkMode';
 import CVManagement from './CVManagement';
 import { usePersistentState } from '../hooks/usePersistentState';
+import { useAnalytics } from '../hooks/useAnalytics';
 
 interface ProfileProps {
   user: { name: string; age: number } | null;
@@ -69,6 +70,7 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, onNavigate, onLogout }
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount] = useState(3); // This would come from your notification state
   const { isDarkMode } = useDarkMode();
+  const { stats: analyticsStats } = useAnalytics();
 
   useEffect(() => {
     setEditName(user?.name || storedProfile.name || '');
@@ -98,10 +100,10 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, onNavigate, onLogout }
   };
 
   const stats = [
-    { label: 'Opportunities Explored', value: '12' },
-    { label: 'Goals Achieved', value: '3' },
-    { label: 'Days Active', value: '7' },
-    { label: 'Chat Sessions', value: '15' }
+    { label: 'Opportunities Explored', value: analyticsStats.opportunitiesExplored.toLocaleString() },
+    { label: 'Goals Achieved', value: analyticsStats.goalsAchieved.toLocaleString() },
+    { label: 'Days Active', value: analyticsStats.daysActive.toLocaleString() },
+    { label: 'Chat Sessions', value: analyticsStats.chatSessions.toLocaleString() }
   ];
 
   const settingsOptions = [

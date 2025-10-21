@@ -32,7 +32,9 @@
     "match": 95,
     "difficulty": "Hard",
     "applicants": "10,000+",
-    "successRate": "5%"
+    "successRate": "5%",
+    "applyUrl": "https://mastercardfdn.org/scholars",
+    "lastUpdated": "2025-10-01T08:00:00Z"
   },
   {
     "id": "2",
@@ -67,7 +69,9 @@
     "match": 88,
     "difficulty": "Medium",
     "applicants": "5,000+",
-    "successRate": "15%"
+    "successRate": "15%",
+    "applyUrl": "https://www.oneyoungworld.com/summit-2024",
+    "lastUpdated": "2025-09-18T12:30:00Z"
   },
   {
     "id": "3",

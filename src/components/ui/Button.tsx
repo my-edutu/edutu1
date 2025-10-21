@@ -14,11 +14,11 @@ const Button: React.FC<ButtonProps> = ({
   ...props 
 }) => {
   const baseClasses =
-    'inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-theme focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0';
+    'inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-theme duration-200 ease-in-out focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0';
   
   const variantClasses = {
-    primary: 'bg-brand-600 text-inverse shadow-soft hover:bg-brand-700 hover:shadow-elevated active:translate-y-px',
-    secondary: 'bg-surface-layer text-soft border border-subtle hover:bg-surface-elevated hover:border-brand-200 shadow-soft active:translate-y-px',
+    primary: 'gradient-accent text-white shadow-soft hover:opacity-95 hover:shadow-[0_30px_70px_-32px_rgba(66,105,255,0.75)] active:translate-y-px',
+    secondary: 'bg-surface-layer text-soft border border-subtle hover:bg-surface-elevated hover:border-accent-300/40 shadow-soft active:translate-y-px',
   };
   
   const sizeClasses = {

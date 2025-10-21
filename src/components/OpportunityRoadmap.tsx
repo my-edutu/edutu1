@@ -17,6 +17,7 @@ import {
 import Card from './ui/Card';
 import Button from './ui/Button';
 import { useDarkMode } from '../hooks/useDarkMode';
+import type { Opportunity } from '../types/opportunity';
 
 interface Task {
   id: string;
@@ -44,11 +45,7 @@ interface Month {
 
 interface OpportunityRoadmapProps {
   onBack: () => void;
-  opportunity: {
-    title: string;
-    deadline: string;
-    organization: string;
-  };
+  opportunity: Opportunity;
 }
 
 const OpportunityRoadmap: React.FC<OpportunityRoadmapProps> = ({ 
@@ -228,12 +225,13 @@ const OpportunityRoadmap: React.FC<OpportunityRoadmapProps> = ({
 
   const [showNotification, setShowNotification] = useState(false);
   const { isDarkMode } = useDarkMode();
+  const deadlineLabel = opportunity.deadline ?? 'No deadline listed';
 
   const motivationalQuotes = [
-    "Success is where preparation meets opportunity! 💪",
-    "Every application is a step closer to your dreams! ✨",
-    "Your dedication today shapes your tomorrow! 🌟",
-    "Believe in yourself - you've got this! 🚀"
+    "Success is where preparation meets opportunity! ≡ƒÆ¬",
+    "Every application is a step closer to your dreams! Γ£¿",
+    "Your dedication today shapes your tomorrow! ≡ƒîƒ",
+    "Believe in yourself - you've got this! ≡ƒÜÇ"
   ];
 
   const scrollToTop = () => {
@@ -323,14 +321,14 @@ const OpportunityRoadmap: React.FC<OpportunityRoadmapProps> = ({
               <ArrowLeft size={20} />
             </Button>
             <div className="flex-1">
-              <h1 className="text-lg font-bold text-gray-800 dark:text-white">Application Roadmap 🎯</h1>
+              <h1 className="text-lg font-bold text-gray-800 dark:text-white">Application Roadmap ≡ƒÄ»</h1>
               <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">{opportunity.title}</p>
             </div>
             <div className="text-right">
               <div className={`text-sm font-medium ${daysUntilDeadline <= 30 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}`}>
                 {daysUntilDeadline} days left
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-500">{opportunity.deadline}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-500">{deadlineLabel}</div>
             </div>
           </div>
 
@@ -504,7 +502,7 @@ const OpportunityRoadmap: React.FC<OpportunityRoadmapProps> = ({
         {/* Completion Celebration */}
         {progress === 100 && (
           <Card className="text-center bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20 dark:from-primary/20 dark:to-accent/20 dark:border-primary/30 dark:bg-gray-800 animate-bounce-subtle">
-            <div className="text-4xl mb-3">🎉</div>
+            <div className="text-4xl mb-3">≡ƒÄë</div>
             <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Application Complete!</h3>
             <p className="text-gray-600 dark:text-gray-300 mb-4">
               Congratulations! You've completed all preparation tasks. Now it's time to wait for the results and prepare for potential interviews.

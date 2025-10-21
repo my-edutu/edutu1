@@ -1,4 +1,4 @@
-import type { Opportunity } from '../types/opportunity';
+import type { Opportunity, OpportunityDifficulty } from '../types/opportunity';
 
 const DEFAULT_ENDPOINT = '/data/opportunities.json';
 
@@ -35,15 +35,9 @@ export async function fetchOpportunities(options: FetchOptions = {}): Promise<Op
     throw new Error('Received malformed opportunities payload');
   }
 
-  // Basic runtime validation to guard against incomplete records.
-  const normalised = payload.filter((item): item is Opportunity => {
-    return (
-      item &&
-      typeof item.id === 'string' &&
-      typeof item.title === 'string' &&
-      typeof item.organization === 'string'
-    );
-  });
+  const normalised = payload
+    .map(normaliseOpportunity)
+    .filter((item): item is Opportunity => Boolean(item));
 
   cachedOpportunities = normalised;
   return normalised;
@@ -51,4 +45,117 @@ export async function fetchOpportunities(options: FetchOptions = {}): Promise<Op
 
 export function clearOpportunitiesCache() {
   cachedOpportunities = null;
+}
+
+function normaliseOpportunity(raw: unknown): Opportunity | null {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+
+  const source = raw as Record<string, unknown>;
+
+  const id = safeString(source.id);
+  const title = safeString(source.title);
+  const organization = safeString(source.organization);
+  const category = safeString(source.category) || 'General';
+  const location = safeString(source.location) || 'Remote';
+  const description = safeString(source.description) || 'No description provided yet.';
+
+  if (!id || !title || !organization) {
+    return null;
+  }
+
+  const deadline = source.deadline ? safeString(source.deadline) : null;
+  const image = source.image ? safeString(source.image) : null;
+  const applicants = source.applicants ? safeString(source.applicants) : undefined;
+  const successRate = source.successRate ? safeString(source.successRate) : undefined;
+  const applyUrl = source.applyUrl ? safeString(source.applyUrl) : undefined;
+  const lastUpdated = source.lastUpdated ? safeString(source.lastUpdated) : undefined;
+
+  const requirements = toStringArray(source.requirements);
+  const benefits = toStringArray(source.benefits);
+  const applicationProcess = toStringArray(source.applicationProcess);
+
+  const matchScore = toNumber(source.match);
+  const difficulty = toDifficulty(source.difficulty);
+
+  return {
+    id,
+    title,
+    organization,
+    category,
+    location,
+    description,
+    deadline,
+    image,
+    requirements,
+    benefits,
+    applicationProcess,
+    applicants,
+    successRate,
+    applyUrl,
+    lastUpdated,
+    match: clamp(matchScore, 0, 100),
+    difficulty: difficulty ?? 'Medium'
+  };
+}
+
+function safeString(value: unknown): string {
+  if (value == null) {
+    return '';
+  }
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+  return String(value).trim();
+}
+
+function toStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => safeString(entry))
+      .filter((entry) => entry.length > 0);
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? [trimmed] : [];
+  }
+
+  return [];
+}
+
+function toNumber(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function toDifficulty(value: unknown): OpportunityDifficulty | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalised = value.trim().toLowerCase();
+  if (normalised === 'easy') {
+    return 'Easy';
+  }
+  if (normalised === 'hard') {
+    return 'Hard';
+  }
+
+  if (normalised === 'medium') {
+    return 'Medium';
+  }
+
+  return null;
 }

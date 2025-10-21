@@ -463,12 +463,12 @@ const AllGoals: React.FC<AllGoalsProps> = ({ onBack, onSelectGoal, onAddGoal }) 
                       <Target size={22} />
                     </div>
                   </div>
-                  <div className={`mt-4 h-2 rounded-full ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                    <div
-                      className="h-2 rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
+                    <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-neutral-200/70 dark:bg-neutral-700/40 backdrop-blur-sm">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-brand-500 via-brand-400 to-accent-400 shadow-[0_12px_32px_-18px_rgba(6,182,212,0.9)] transition-[width] duration-500 ease-out"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
                   <div className="mt-2 flex items-center justify-between text-xs text-muted">
                     <span>{progress}% complete</span>
                     {goal.completedAt && goal.status === 'completed' && (

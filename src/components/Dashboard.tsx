@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Award,
   Bell,
@@ -325,7 +325,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {
         label: 'Active goals',
         value: activeGoals.length.toString(),
-        helper: `${completedGoals.length} completed Â· ${completionRate}% done`
+        helper: `${completedGoals.length} completed · ${completionRate}% done`
       },
       {
         label: 'Consistency',
@@ -344,7 +344,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         label: 'Next deadline',
         value: nextDeadlineGoal ? formatDateShort(nextDeadlineGoal.deadline) : 'No deadline',
         helper: nextDeadlineGoal
-          ? `${describeDueDate(nextDeadlineGoal.deadline)} · ${nextDeadlineGoal.title}`
+          ? `${describeDueDate(nextDeadlineGoal.deadline)} � ${nextDeadlineGoal.title}`
           : 'Add a deadline to stay on pace'
       }
     ],
@@ -355,10 +355,17 @@ const Dashboard: React.FC<DashboardProps> = ({
       consistencyScore,
       averageProgress,
       nextDeadlineGoal?.id,
-      nextDeadlineGoal?.deadline,
-      nextDeadlineGoal?.title
-    ]
-  );
+        nextDeadlineGoal?.deadline,
+        nextDeadlineGoal?.title
+      ]
+    );
+
+  const darkStatBackgrounds = [
+    'bg-gradient-to-br from-brand-500/35 via-brand-500/12 to-surface-layer/70 border-transparent ring-1 ring-brand-500/40 shadow-[0_32px_84px_-40px_rgba(79,70,229,0.75)]',
+    'bg-gradient-to-br from-emerald-500/30 via-emerald-500/10 to-surface-layer/70 border-transparent ring-1 ring-emerald-400/35 shadow-[0_32px_84px_-40px_rgba(16,185,129,0.7)]',
+    'bg-gradient-to-br from-violet-500/30 via-violet-500/12 to-surface-layer/70 border-transparent ring-1 ring-violet-400/35 shadow-[0_32px_84px_-40px_rgba(129,140,248,0.75)]',
+    'bg-gradient-to-br from-amber-400/28 via-amber-500/12 to-surface-layer/70 border-transparent ring-1 ring-amber-300/35 shadow-[0_32px_84px_-40px_rgba(245,158,11,0.65)]'
+  ];
 
   const handleAddGoal = () => {
     if (onAddGoal) {
@@ -472,11 +479,17 @@ const Dashboard: React.FC<DashboardProps> = ({
       </header>
         {/* Greeting and Daily Motivation Section */}
         <div className="px-6 py-2">
-          <div className={`rounded-2xl p-5 ${isDarkMode ? 'bg-gray-800/60 border border-gray-700' : 'bg-white border border-gray-200'} shadow-sm`}>
+          <div
+            className={`rounded-3xl p-5 transition-theme ${
+              isDarkMode
+                ? 'bg-gradient-to-br from-brand-500/30 via-brand-500/8 to-surface-layer/80 border border-brand-500/25 shadow-[0_32px_84px_-42px_rgba(79,70,229,0.75)]'
+                : 'bg-white border border-gray-200 shadow-sm'
+            }`}
+          >
             <h1 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               {getGreetingMessage(user?.name?.split(' ')[0] ?? 'there')}
             </h1>
-            <p className={`mt-2 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            <p className={`mt-2 text-sm ${isDarkMode ? 'text-slate-200/80' : 'text-gray-600'}`}>
               "{getRandomQuote()}"
             </p>
           </div>
@@ -550,59 +563,48 @@ const Dashboard: React.FC<DashboardProps> = ({
       <div className="px-6 py-6">
         <div className="grid grid-cols-2 gap-5 sm:grid-cols-2 lg:grid-cols-2">
           {stats.map((stat, index) => {
-            // Define different background colors for each card based on index
             let bgColor = '';
+            let borderClass = isDarkMode ? 'border border-gray-700' : 'border border-gray-200';
+            let labelColorClass = isDarkMode ? 'text-white/75' : 'text-muted';
+            let valueColorClass = isDarkMode ? 'text-white' : 'text-brand-600';
+            let helperColorClass = isDarkMode ? 'text-white/80' : 'text-muted';
+
             if (isDarkMode) {
-              // Dark mode colors
-              switch(index) {
-                case 0: // Active goals
-                  bgColor = '!bg-rose-900/20';
-                  break;
-                case 1: // Consistency
-                  bgColor = '!bg-green-900/20';
-                  break;
-                case 2: // Avg progress
-                  bgColor = '!bg-violet-800/30';
-                  break;
-                case 3: // Next deadline
-                  bgColor = '!bg-amber-900/20';
-                  break;
-                default:
-                  bgColor = 'bg-gray-800/70';
-              }
+              bgColor =
+                darkStatBackgrounds[index] ??
+                'bg-gradient-to-br from-brand-500/20 via-brand-500/6 to-surface-layer/70 border-transparent ring-1 ring-brand-500/35 shadow-[0_32px_84px_-40px_rgba(79,70,229,0.7)]';
+              borderClass = 'border-transparent';
             } else {
-              // Light mode colors
-              switch(index) {
-                case 0: // Active goals
+              switch (index) {
+                case 0:
                   bgColor = '!bg-rose-50';
                   break;
-                case 1: // Consistency
+                case 1:
                   bgColor = '!bg-green-50';
                   break;
-                case 2: // Avg progress
+                case 2:
                   bgColor = '!bg-violet-100';
                   break;
-                case 3: // Next deadline
+                case 3:
                   bgColor = '!bg-amber-50';
                   break;
                 default:
                   bgColor = 'bg-gradient-to-br from-white to-primary/5';
               }
             }
-            
+
             return (
-            <Card
-              key={stat.label}
-              className={`p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg rounded-2xl ${
-                isDarkMode ? 'border border-gray-700' : 'border border-gray-200'
-              } ${bgColor}`}
-              style={{ animationDelay: `${index * 80}ms` }}
-            >
-              <p className="text-xs uppercase tracking-wide text-muted">{stat.label}</p>
-              <p className="mt-3 text-2xl font-semibold text-brand-600">{stat.value}</p>
-              <p className="mt-2 text-xs text-muted">{stat.helper}</p>
-            </Card>
-          )})}
+              <Card
+                key={stat.label}
+                className={`p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg rounded-2xl h-32 flex flex-col ${borderClass} ${bgColor}`}
+                style={{ animationDelay: `${index * 80}ms` }}
+              >
+                <p className={`text-xs uppercase tracking-wide truncate ${labelColorClass}`}>{stat.label}</p>
+                <p className={`mt-3 text-2xl font-semibold flex-1 flex items-center ${valueColorClass}`}>{stat.value}</p>
+                <p className={`mt-2 text-xs truncate ${helperColorClass}`}>{stat.helper}</p>
+              </Card>
+            );
+          })}
         </div>
       </div>
 
@@ -794,9 +796,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                         </div>
                       </div>
                     </div>
-                    <div className={`mt-3 h-2 rounded-full ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                    <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-neutral-200/70 dark:bg-neutral-700/40 backdrop-blur-sm">
                       <div
-                        className="h-2 rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
+                        className="h-full rounded-full bg-gradient-to-r from-brand-500 via-brand-400 to-accent-400 shadow-[0_12px_32px_-18px_rgba(6,182,212,0.9)] transition-[width] duration-500 ease-out"
                         style={{ width: `${progress}%` }}
                       />
                     </div>
@@ -870,7 +872,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       </div>
                       <div className="flex flex-col items-end justify-center flex-shrink-0">
                         <div className="text-sm font-semibold text-success">
-                          {Math.round(opportunity.match)}% match
+                          {Math.round(opportunity.match ?? 0)}% match
                         </div>
                         <ChevronRight size={18} className="text-muted flex-shrink-0" />
                       </div>

@@ -331,9 +331,9 @@ const IntroductionPopup: React.FC<IntroductionPopupProps> = ({ isOpen, onComplet
               <span>Step {currentStep + 1} of {steps.length}</span>
               <span>{Math.round(((currentStep + 1) / steps.length) * 100)}%</span>
             </div>
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+            <div className="w-full h-2 overflow-hidden rounded-full bg-neutral-200/70 dark:bg-neutral-700/40 backdrop-blur-sm">
               <div
-                className="bg-gradient-to-r from-primary to-accent h-2 rounded-full transition-all duration-500"
+                className="h-full rounded-full bg-gradient-to-r from-brand-500 via-brand-400 to-accent-400 shadow-[0_8px_24px_-14px_rgba(6,182,212,0.85)] transition-[width] duration-500 ease-out"
                 style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
               />
             </div>

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import Button from './ui/Button';
 import { useDarkMode } from '../hooks/useDarkMode';
+import { useAnalytics } from '../hooks/useAnalytics';
 
 type MessageActionType = 'scholarship' | 'community' | 'expert' | 'link';
 
@@ -53,6 +54,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
   const [isRecording, setIsRecording] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isDarkMode } = useDarkMode();
+  const { recordChatSession } = useAnalytics();
+  const hasRecordedSessionRef = useRef(false);
 
   const quickPrompts: Array<{ text: string; icon: IconType }> = [
     { text: 'Help me find scholarships', icon: Sparkles },
@@ -83,6 +86,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
     const text = (overrideText ?? input).trim();
 
     if (!text) return;
+
+    if (!hasRecordedSessionRef.current) {
+      recordChatSession();
+      hasRecordedSessionRef.current = true;
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),

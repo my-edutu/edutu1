@@ -13,7 +13,7 @@ interface AllOpportunitiesProps {
 
 const LOADING_PLACEHOLDERS = 4;
 
-const getDifficultyColor = (difficulty: string) => {
+const getDifficultyColor = (difficulty?: string | null) => {
   switch (difficulty) {
     case 'Easy':
       return 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800';
@@ -186,8 +186,14 @@ const AllOpportunities: React.FC<AllOpportunitiesProps> = ({ onBack, onSelectOpp
               onClick={() => onSelectOpportunity(opportunity)}
             >
               <div className="flex gap-4">
-                <div className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0">
-                  <img src={opportunity.image} alt={opportunity.title} className="h-full w-full object-cover" />
+                <div className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-700">
+                  {opportunity.image ? (
+                    <img src={opportunity.image} alt={opportunity.title} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs text-gray-500 dark:text-gray-400">
+                      No image
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between mb-2">
@@ -200,7 +206,7 @@ const AllOpportunities: React.FC<AllOpportunitiesProps> = ({ onBack, onSelectOpp
                     <div className="flex items-center gap-1 ml-2">
                       <Star size={14} className="text-yellow-500" />
                       <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                        {Math.round(opportunity.match)}%
+                        {Math.round(opportunity.match ?? 0)}%
                       </span>
                     </div>
                   </div>
@@ -219,8 +225,10 @@ const AllOpportunities: React.FC<AllOpportunitiesProps> = ({ onBack, onSelectOpp
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded-full text-xs border ${getDifficultyColor(opportunity.difficulty)}`}>
-                        {opportunity.difficulty}
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs border ${getDifficultyColor(opportunity.difficulty)}`}
+                      >
+                        {opportunity.difficulty ?? 'Medium'}
                       </span>
                       {opportunity.applicants && (
                         <span className="text-xs text-gray-500 dark:text-gray-400">{opportunity.applicants} applicants</span>

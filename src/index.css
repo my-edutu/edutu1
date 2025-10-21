@@ -24,17 +24,17 @@
   --color-brand-950: 30 27 75;
 
   /* Accent palette */
-  --color-accent-50: 255 247 237;
-  --color-accent-100: 255 237 213;
-  --color-accent-200: 254 215 170;
-  --color-accent-300: 253 186 116;
-  --color-accent-400: 251 146 60;
-  --color-accent-500: 249 115 22;
-  --color-accent-600: 234 88 12;
-  --color-accent-700: 194 65 12;
-  --color-accent-800: 154 52 18;
-  --color-accent-900: 124 45 18;
-  --color-accent-950: 67 20 7;
+  --color-accent-50: 236 254 255;
+  --color-accent-100: 207 250 254;
+  --color-accent-200: 165 243 252;
+  --color-accent-300: 103 232 249;
+  --color-accent-400: 34 211 238;
+  --color-accent-500: 6 182 212;
+  --color-accent-600: 8 145 178;
+  --color-accent-700: 14 116 144;
+  --color-accent-800: 21 94 117;
+  --color-accent-900: 22 78 99;
+  --color-accent-950: 8 51 68;
 
   /* Neutral palette */
   --color-neutral-0: 252 252 253;
@@ -90,39 +90,40 @@
 
 .dark {
   color-scheme: dark;
-  --color-neutral-0: 2 6 23;
-  --color-neutral-50: 11 17 32;
-  --color-neutral-100: 17 24 39;
-  --color-neutral-200: 30 41 59;
-  --color-neutral-300: 44 54 74;
-  --color-neutral-400: 58 74 99;
-  --color-neutral-500: 74 89 112;
-  --color-neutral-600: 100 116 139;
-  --color-neutral-700: 148 163 184;
-  --color-neutral-800: 203 213 245;
-  --color-neutral-900: 226 232 240;
-  --color-neutral-950: 248 250 252;
-  --surface-body: 2 6 23;
-  --surface-layer: 15 23 42;
-  --surface-elevated: 30 41 59;
-  --surface-brand: 41 37 126;
-  --surface-overlay: rgba(2, 6, 23, 0.72);
+  --color-neutral-0: 8 11 24;
+  --color-neutral-50: 12 15 26;
+  --color-neutral-100: 17 22 34;
+  --color-neutral-200: 23 30 44;
+  --color-neutral-300: 29 38 56;
+  --color-neutral-400: 36 47 70;
+  --color-neutral-500: 47 61 89;
+  --color-neutral-600: 66 82 114;
+  --color-neutral-700: 100 122 156;
+  --color-neutral-800: 148 171 205;
+  --color-neutral-900: 207 218 238;
+  --color-neutral-950: 241 245 249;
 
-  --text-primary: 226 232 240;
-  --text-secondary: 203 213 245;
-  --text-muted: 148 163 184;
-  --text-inverse: 15 23 42;
-  --text-link: 165 180 252;
+  --surface-body: 12 15 26;
+  --surface-layer: 20 25 38;
+  --surface-elevated: 27 34 52;
+  --surface-brand: 30 38 59;
+  --surface-overlay: rgba(8, 12, 24, 0.7);
 
-  --border-subtle: 28 37 53;
-  --border-default: 39 51 72;
-  --border-strong: 51 65 85;
-  --border-focus: rgba(129, 140, 248, 0.45);
+  --text-primary: 241 245 249;
+  --text-secondary: 148 163 184;
+  --text-muted: 100 116 139;
+  --text-inverse: 241 245 249;
+  --text-link: 129 140 248;
 
-  --shadow-soft: 0 18px 36px -20px rgba(8, 15, 32, 0.55);
-  --shadow-elevated: 0 34px 62px -26px rgba(8, 15, 32, 0.65);
-  --shadow-ring: 0 0 0 4px rgba(129, 140, 248, 0.28);
-  --shadow-focus: 0 0 0 3px rgba(129, 140, 248, 0.42);
+  --border-subtle: 32 40 58;
+  --border-default: 43 54 76;
+  --border-strong: 71 85 109;
+  --border-focus: rgba(79, 70, 229, 0.5);
+
+  --shadow-soft: 0 24px 48px -28px rgba(4, 7, 16, 0.7);
+  --shadow-elevated: 0 40px 80px -32px rgba(6, 12, 24, 0.85);
+  --shadow-ring: 0 0 0 1px rgba(79, 70, 229, 0.4);
+  --shadow-focus: 0 0 0 3px rgba(6, 182, 212, 0.45);
 }
 
 *,
@@ -144,12 +145,12 @@ h1,
 h2,
 h3,
 h4,
-h5,
-h6 {
-  font-family: var(--font-display);
-  color: rgb(var(--text-primary));
-  letter-spacing: -0.02em;
-}
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    color: rgb(var(--text-primary));
+    letter-spacing: 0.01em;
+  }
 
 p {
   font-size: 1rem;
@@ -349,6 +350,26 @@ button:focus-visible {
 
   .transition-theme {
     transition: background-color var(--transition-medium), color var(--transition-medium), border-color var(--transition-medium), box-shadow var(--transition-fast);
+  }
+
+  .glass-panel {
+    background: linear-gradient(
+      155deg,
+      rgb(var(--surface-layer) / 0.92),
+      rgb(var(--surface-body) / 0.82)
+    );
+    backdrop-filter: blur(18px);
+    border: 1px solid rgb(var(--border-subtle) / 0.6);
+  }
+
+  .shadow-glow {
+    box-shadow:
+      0 28px 68px -36px rgba(6, 12, 24, 0.85),
+      0 0 0 1px rgba(79, 70, 229, 0.35);
+  }
+
+  .gradient-accent {
+    background-image: linear-gradient(135deg, rgb(var(--color-brand-500) / 1), rgb(var(--color-accent-500) / 1));
   }
 }
 

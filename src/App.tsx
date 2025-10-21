@@ -21,18 +21,21 @@ import IntroductionPopup from './components/IntroductionPopup';
 import AllGoals from './components/AllGoals';
 import { useDarkMode } from './hooks/useDarkMode';
 import { Goal, useGoals } from './hooks/useGoals';
+import { useAnalytics } from './hooks/useAnalytics';
+import type { Opportunity } from './types/opportunity';
 
 export type Screen = 'landing' | 'auth' | 'chat' | 'dashboard' | 'all-goals' | 'profile' | 'opportunity-detail' | 'all-opportunities' | 'roadmap' | 'opportunity-roadmap' | 'settings' | 'profile-edit' | 'notifications' | 'privacy' | 'help' | 'cv-management' | 'add-goal' | 'community-marketplace';
 
 export function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('landing');
   const [user, setUser] = useState<{ name: string; age: number } | null>(null);
-  const [selectedOpportunity, setSelectedOpportunity] = useState<any>(null);
+  const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [showIntroPopup, setShowIntroPopup] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
   const { goals, createGoal } = useGoals();
   const { isDarkMode } = useDarkMode();
+  const { recordOpportunityExplored } = useAnalytics();
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -60,13 +63,14 @@ export function App() {
     setCurrentScreen('dashboard');
   };
 
-  const handleOpportunitySelect = (opportunity: any) => {
+  const handleOpportunitySelect = (opportunity: Opportunity) => {
     scrollToTop();
+    recordOpportunityExplored();
     setSelectedOpportunity(opportunity);
     setCurrentScreen('opportunity-detail');
   };
 
-  const handleAddToGoals = (opportunity: any) => {
+  const handleAddToGoals = (opportunity: Opportunity) => {
     scrollToTop();
     setSelectedOpportunity(opportunity);
     setCurrentScreen('opportunity-roadmap');
@@ -163,6 +167,14 @@ export function App() {
           />
         );
       case 'opportunity-detail':
+        if (!selectedOpportunity) {
+          return (
+            <AllOpportunities
+              onBack={() => handleBack('dashboard')}
+              onSelectOpportunity={handleOpportunitySelect}
+            />
+          );
+        }
         return (
           <OpportunityDetail
             opportunity={selectedOpportunity}
@@ -193,6 +205,14 @@ export function App() {
           />
         );
       case 'opportunity-roadmap':
+        if (!selectedOpportunity) {
+          return (
+            <AllOpportunities
+              onBack={() => handleBack('dashboard')}
+              onSelectOpportunity={handleOpportunitySelect}
+            />
+          );
+        }
         return (
           <OpportunityRoadmap
             onBack={() => handleBack('dashboard')}

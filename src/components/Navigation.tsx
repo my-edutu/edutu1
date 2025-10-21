@@ -18,55 +18,73 @@ const Navigation: React.FC<NavigationProps> = ({ currentScreen, onNavigate }) =>
     { id: 'profile' as Screen, icon: User, label: 'Profile' }
   ];
 
-  return (
-    <nav className={`fixed bottom-0 left-0 right-0 bg-surface-layer border-t border-subtle shadow-soft z-50 transition-theme ${isDarkMode ? 'dark' : ''}`}>
-      {/* Mobile & Tablet Navigation */}
-      <div className="lg:hidden px-2 sm:px-4 py-2 safe-area-bottom">
-        <div className="flex justify-around max-w-md mx-auto">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentScreen === item.id;
-            
-            return (
-              <button
-                key={item.id}
-                onClick={() => onNavigate(item.id)}
-                className={`flex flex-col items-center py-2 px-3 sm:px-4 rounded-2xl transition-theme min-w-0 border ${
-                  isActive 
-                    ? 'text-brand-600 bg-surface-brand border-brand-100 shadow-soft' 
-                    : 'border-transparent text-muted hover:text-strong'
-                }`}
-              >
-                <Icon size={20} className={`${isActive ? 'animate-bounce-subtle' : ''} mb-1`} />
-                <span className="text-xs font-medium truncate">{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+  const renderMobileNav = () => (
+    <div className="flex justify-around gap-1 max-w-md mx-auto">
+      {navItems.map((item) => {
+        const Icon = item.icon;
+        const isActive = currentScreen === item.id;
 
-      {/* Desktop Navigation - Hidden on mobile/tablet */}
-      <div className="hidden lg:block px-6 py-3">
-        <div className="flex justify-center max-w-2xl mx-auto">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentScreen === item.id;
-            
-            return (
-              <button
-                key={item.id}
-                onClick={() => onNavigate(item.id)}
-                className={`flex items-center gap-3 py-3 px-6 rounded-2xl transition-theme mx-2 border ${
-                  isActive 
-                    ? 'text-brand-600 bg-surface-brand border-brand-100 shadow-soft' 
-                    : 'border-transparent text-muted hover:text-strong'
-                }`}
-              >
-                <Icon size={24} className={isActive ? 'animate-bounce-subtle' : ''} />
-                <span className="text-sm font-medium">{item.label}</span>
-              </button>
-            );
-          })}
+        return (
+          <button
+            key={item.id}
+            onClick={() => onNavigate(item.id)}
+            className={`group relative flex min-w-0 flex-col items-center gap-1 rounded-[18px] border border-transparent px-3 sm:px-4 py-2 text-xs font-medium transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${
+              isActive
+                ? 'gradient-accent text-white shadow-[0_18px_40px_-22px_rgba(66,105,255,0.75)]'
+                : 'text-muted hover:text-primary hover:bg-white/5 dark:hover:bg-white/10'
+            }`}
+          >
+            <Icon
+              size={20}
+              className={`transition-transform duration-200 ease-in-out ${
+                isActive ? 'drop-shadow-[0_0_12px_rgba(99,102,241,0.6)]' : 'group-hover:-translate-y-[1px]'
+              }`}
+            />
+            <span className="truncate">{item.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const renderDesktopNav = () => (
+    <div className="hidden lg:flex justify-center gap-2">
+      {navItems.map((item) => {
+        const Icon = item.icon;
+        const isActive = currentScreen === item.id;
+
+        return (
+          <button
+            key={item.id}
+            onClick={() => onNavigate(item.id)}
+            className={`group relative flex items-center gap-3 rounded-[20px] border border-transparent px-6 py-3 text-sm font-medium transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${
+              isActive
+                ? 'gradient-accent text-white shadow-[0_20px_48px_-24px_rgba(66,105,255,0.7)]'
+                : 'text-muted hover:text-primary hover:bg-white/5 dark:hover:bg-white/10'
+            }`}
+          >
+            <Icon
+              size={24}
+              className={`transition-transform duration-200 ease-in-out ${
+                isActive ? 'drop-shadow-[0_0_18px_rgba(99,102,241,0.5)]' : 'group-hover:-translate-y-[2px]'
+              }`}
+            />
+            <span>{item.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <nav className={`fixed bottom-0 left-0 right-0 z-50 transition-theme ${isDarkMode ? 'dark' : ''}`}>
+      <div
+        className="mx-auto w-full max-w-5xl px-3 sm:px-4 lg:px-6 pt-2"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)' }}
+      >
+        <div className="glass-panel shadow-glow rounded-[24px] px-3 sm:px-4 py-2 lg:py-3">
+          <div className="lg:hidden">{renderMobileNav()}</div>
+          {renderDesktopNav()}
         </div>
       </div>
     </nav>

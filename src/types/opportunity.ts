@@ -5,15 +5,17 @@ export interface Opportunity {
   title: string;
   organization: string;
   category: string;
-  deadline?: string;
+  deadline?: string | null;
   location: string;
   description: string;
   requirements: string[];
   benefits: string[];
   applicationProcess: string[];
-  image: string;
+  image?: string | null;
   match: number;
-  difficulty: OpportunityDifficulty;
+  difficulty?: OpportunityDifficulty | null;
   applicants?: string;
   successRate?: string;
+  applyUrl?: string;
+  lastUpdated?: string;
 }

@@ -119,8 +119,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   return (
     <div className={`min-h-screen bg-surface-body text-strong transition-theme ${isDarkMode ? 'dark' : ''}`}>
       <div className="relative overflow-hidden">
-        <div className="absolute inset-x-0 top-[-18rem] h-[28rem] blur-3xl opacity-60 bg-gradient-to-br from-brand-500 to-accent-400 dark:opacity-40" />
-
         {/* Top app bar */}
         <header className="flex items-center justify-between px-4 pt-6 max-w-6xl mx-auto">
           <div className="flex items-center gap-3">

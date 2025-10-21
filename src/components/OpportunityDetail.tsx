@@ -1,29 +1,14 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { ArrowLeft, Calendar, MapPin, Users, Clock, Star, Bell, ExternalLink, Target, BookOpen, Loader2 } from 'lucide-react';
 import Button from './ui/Button';
 import Card from './ui/Card';
 import { useDarkMode } from '../hooks/useDarkMode';
+import type { Opportunity } from '../types/opportunity';
 
 interface OpportunityDetailProps {
-  opportunity: {
-    id: string;
-    title: string;
-    organization: string;
-    category: string;
-    deadline: string;
-    location: string;
-    description: string;
-    requirements: string[];
-    benefits: string[];
-    applicationProcess: string[];
-    image: string;
-    match: number;
-    difficulty: 'Easy' | 'Medium' | 'Hard';
-    applicants: string;
-    successRate: string;
-  };
+  opportunity: Opportunity;
   onBack: () => void;
-  onAddToGoals: (opportunity: any) => void;
+  onAddToGoals: (opportunity: Opportunity) => void;
 }
 
 const OpportunityDetail: React.FC<OpportunityDetailProps> = ({ 
@@ -35,8 +20,31 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({
   const [isAddingToGoals, setIsAddingToGoals] = useState(false);
   const { isDarkMode } = useDarkMode();
 
+  const difficultyLabel = opportunity.difficulty ?? 'Medium';
+  const applicantsCopy = opportunity.applicants
+    ? `${opportunity.applicants} applicants`
+    : 'Applicants data coming soon';
+  const successRateCopy = opportunity.successRate ?? 'Success rate not shared yet';
+  const deadlineCopy = opportunity.deadline ?? 'No deadline listed';
+  const requirements =
+    opportunity.requirements.length > 0
+      ? opportunity.requirements
+      : ['Requirements will be updated soon.'];
+  const benefits =
+    opportunity.benefits.length > 0
+      ? opportunity.benefits
+      : ['Benefits will be updated soon.'];
+  const applicationSteps =
+    opportunity.applicationProcess.length > 0
+      ? opportunity.applicationProcess
+      : ['Application steps will be confirmed soon.'];
+  const applyUrl = opportunity.applyUrl && opportunity.applyUrl.length > 0 ? opportunity.applyUrl : null;
+
   const handleApply = () => {
-    window.open('#', '_blank');
+    if (!applyUrl) {
+      return;
+    }
+    window.open(applyUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleAddToGoals = async () => {
@@ -49,7 +57,7 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({
     onAddToGoals(opportunity);
   };
 
-  const getDifficultyColor = (difficulty: string) => {
+  const getDifficultyColor = (difficulty: string | null | undefined) => {
     switch (difficulty) {
       case 'Easy': return 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800';
       case 'Medium': return 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800';
@@ -100,13 +108,13 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({
           <div className="flex items-center gap-2 sm:gap-4 text-sm overflow-x-auto pb-2">
             <div className="flex items-center gap-1 whitespace-nowrap">
               <Star size={16} className="text-yellow-500" />
-              <span className="font-medium text-green-600 dark:text-green-400">{opportunity.match}% match</span>
+              <span className="font-medium text-green-600 dark:text-green-400">{Math.round(opportunity.match ?? 0)}% match</span>
             </div>
-            <div className={`px-2 py-1 rounded-full text-xs border whitespace-nowrap ${getDifficultyColor(opportunity.difficulty)}`}>
-              {opportunity.difficulty}
+            <div className={`px-2 py-1 rounded-full text-xs border whitespace-nowrap ${getDifficultyColor(difficultyLabel)}`}>
+              {difficultyLabel}
             </div>
             <div className="text-gray-500 dark:text-gray-400 whitespace-nowrap">
-              {opportunity.applicants} applicants
+              {applicantsCopy}
             </div>
           </div>
         </div>
@@ -114,14 +122,20 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({
 
       <div className="p-4 lg:px-6 lg:max-w-4xl lg:mx-auto space-y-6 pb-24 lg:pb-6">
         {/* Hero Image */}
-        <div className="relative h-48 sm:h-56 lg:h-64 rounded-2xl overflow-hidden">
-          <img
-            src={opportunity.image}
-            alt={opportunity.title}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-          <div className="absolute bottom-4 left-4 text-white">
+        <div className="relative h-48 sm:h-56 lg:h-64 rounded-2xl overflow-hidden bg-gray-200 dark:bg-gray-700">
+          {opportunity.image ? (
+            <img
+              src={opportunity.image}
+              alt={opportunity.title}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-gray-600 dark:text-gray-300 text-sm">
+              Visual coming soon
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none"></div>
+          <div className="absolute bottom-4 left-4 text-white max-w-[80%]">
             <div className="text-sm opacity-90">{opportunity.category}</div>
             <div className="text-lg lg:text-xl font-bold line-clamp-2">{opportunity.title}</div>
           </div>
@@ -135,7 +149,7 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({
               <Calendar size={20} className="text-primary flex-shrink-0" />
               <div className="min-w-0">
                 <div className="font-medium text-gray-800 dark:text-white">Application Deadline</div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">{opportunity.deadline}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">{deadlineCopy}</div>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -149,7 +163,7 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({
               <Users size={20} className="text-primary flex-shrink-0" />
               <div className="min-w-0">
                 <div className="font-medium text-gray-800 dark:text-white">Success Rate</div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">{opportunity.successRate}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">{successRateCopy}</div>
               </div>
             </div>
           </div>
@@ -165,7 +179,7 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({
         <Card className="dark:bg-gray-800 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Requirements</h2>
           <div className="space-y-2">
-            {opportunity.requirements.map((req, index) => (
+            {requirements.map((req, index) => (
               <div key={index} className="flex items-start gap-3">
                 <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0"></div>
                 <p className="text-gray-600 dark:text-gray-300">{req}</p>
@@ -178,7 +192,7 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({
         <Card className="dark:bg-gray-800 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">What You'll Get</h2>
           <div className="space-y-2">
-            {opportunity.benefits.map((benefit, index) => (
+            {benefits.map((benefit, index) => (
               <div key={index} className="flex items-start gap-3">
                 <div className="w-2 h-2 bg-accent rounded-full mt-2 flex-shrink-0"></div>
                 <p className="text-gray-600 dark:text-gray-300">{benefit}</p>
@@ -191,7 +205,7 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({
         <Card className="dark:bg-gray-800 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Application Process</h2>
           <div className="space-y-4">
-            {opportunity.applicationProcess.map((step, index) => (
+            {applicationSteps.map((step, index) => (
               <div key={index} className="flex gap-4">
                 <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                   {index + 1}
@@ -227,9 +241,10 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({
           <Button
             onClick={handleApply}
             className="flex items-center justify-center gap-2 order-1 sm:order-2"
+            disabled={!applyUrl}
           >
             <ExternalLink size={16} />
-            Apply Now
+            {applyUrl ? 'Apply Now' : 'Application link coming soon'}
           </Button>
         </div>
 
