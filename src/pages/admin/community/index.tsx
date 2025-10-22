@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useAdminCheck } from '../../../hooks/useAdminCheck';
 import AnnouncementsManager from '../../../components/admin/community/AnnouncementsManager';
 import SupportTickets from '../../../components/admin/community/SupportTickets';
@@ -31,7 +31,7 @@ const CommunityAdminPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center rounded-2xl border border-gray-200 bg-white text-sm text-gray-600">
-        Checking admin privileges…
+        Checking admin privileges...
       </div>
     );
   }
@@ -44,15 +44,12 @@ const CommunityAdminPage: React.FC = () => {
     );
   }
 
-  const badgeContent = useMemo<Record<TabKey, number>>(
-    () => ({
-      announcements: announcementCount,
-      support: openTicketCount,
-      posts: flaggedPostCount,
-      marketplace: pendingMarketplaceCount
-    }),
-    [announcementCount, flaggedPostCount, openTicketCount]
-  );
+  const badgeContent: Record<TabKey, number> = {
+    announcements: announcementCount,
+    support: openTicketCount,
+    posts: flaggedPostCount,
+    marketplace: pendingMarketplaceCount
+  };
 
   return (
     <div className="space-y-6">
@@ -100,3 +97,6 @@ const CommunityAdminPage: React.FC = () => {
 };
 
 export default CommunityAdminPage;
+
+
+

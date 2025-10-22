@@ -36,7 +36,7 @@ export interface GoalInput {
   templateId?: string;
 }
 
-export interface GoalUpdate extends Partial<Omit<Goal, 'id' | 'createdAt'>> {}
+export type GoalUpdate = Partial<Omit<Goal, 'id' | 'createdAt'>>;
 
 interface GoalsContextValue {
   goals: Goal[];

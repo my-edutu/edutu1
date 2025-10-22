@@ -163,8 +163,8 @@ const baseSpatial: SpatialScale = {
     '2xl': '3rem',
   },
   shadows: {
-    soft: '0 18px 36px -20px rgba(15, 23, 42, 0.2)',
-    elevated: '0 24px 48px -28px rgba(15, 23, 42, 0.26)',
+    soft: '0 12px 24px -16px rgba(15, 23, 42, 0.15)',
+    elevated: '0 18px 36px -18px rgba(15, 23, 42, 0.18)',
     focus: '0 0 0 3px rgba(99, 102, 241, 0.35)',
     ring: '0 0 0 4px rgba(99, 102, 241, 0.18)',
   },
@@ -340,8 +340,8 @@ export const darkTokens: DesignTokens = {
   spatial: {
     ...baseSpatial,
     shadows: {
-      soft: '0 24px 48px -28px rgba(4, 7, 16, 0.7)',
-      elevated: '0 40px 80px -32px rgba(6, 12, 24, 0.85)',
+      soft: '0 12px 24px -16px rgba(4, 7, 16, 0.5)',
+      elevated: '0 18px 36px -18px rgba(6, 12, 24, 0.6)',
       focus: '0 0 0 3px rgba(6, 182, 212, 0.45)',
       ring: '0 0 0 1px rgba(79, 70, 229, 0.4)',
     },

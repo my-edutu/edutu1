@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+﻿import React, { useMemo, useState, useEffect } from 'react';
 import {
   Award,
   Bell,
@@ -325,7 +325,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {
         label: 'Active goals',
         value: activeGoals.length.toString(),
-        helper: `${completedGoals.length} completed · ${completionRate}% done`
+        helper: `${completedGoals.length} completed Â· ${completionRate}% done`
       },
       {
         label: 'Consistency',
@@ -344,7 +344,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         label: 'Next deadline',
         value: nextDeadlineGoal ? formatDateShort(nextDeadlineGoal.deadline) : 'No deadline',
         helper: nextDeadlineGoal
-          ? `${describeDueDate(nextDeadlineGoal.deadline)} � ${nextDeadlineGoal.title}`
+          ? `${describeDueDate(nextDeadlineGoal.deadline)} · ${nextDeadlineGoal.title}`
           : 'Add a deadline to stay on pace'
       }
     ],
@@ -565,9 +565,9 @@ const Dashboard: React.FC<DashboardProps> = ({
           {stats.map((stat, index) => {
             let bgColor = '';
             let borderClass = isDarkMode ? 'border border-gray-700' : 'border border-gray-200';
-            let labelColorClass = isDarkMode ? 'text-white/75' : 'text-muted';
-            let valueColorClass = isDarkMode ? 'text-white' : 'text-brand-600';
-            let helperColorClass = isDarkMode ? 'text-white/80' : 'text-muted';
+            const labelColorClass = isDarkMode ? 'text-white/75' : 'text-muted';
+            const valueColorClass = isDarkMode ? 'text-white' : 'text-brand-600';
+            const helperColorClass = isDarkMode ? 'text-white/80' : 'text-muted';
 
             if (isDarkMode) {
               bgColor =
@@ -933,3 +933,4 @@ const Dashboard: React.FC<DashboardProps> = ({
 };
 
 export default Dashboard;
+

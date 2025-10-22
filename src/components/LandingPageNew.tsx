@@ -176,14 +176,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   Start Your Journey
                   <ArrowRight size={18} className="ml-2" />
                 </Button>
-                <Button 
-                  variant="secondary" 
-                  size="lg" 
-                  className="px-8 py-4 text-base rounded-xl"
-                  onClick={toggleDarkMode}
-                >
-                  {isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-                </Button>
               </div>
               
               <div className="flex items-center space-x-8 pt-4">
@@ -322,14 +314,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               onClick={onGetStarted}
             >
               Get Started Today
-            </Button>
-            <Button 
-              variant="outline" 
-              size="lg" 
-              className="px-8 py-4 text-base border-white/30 text-inverse hover:bg-white/10"
-              onClick={toggleDarkMode}
-            >
-              {isDarkMode ? 'Try Light Mode' : 'Try Dark Mode'}
             </Button>
           </div>
         </div>
