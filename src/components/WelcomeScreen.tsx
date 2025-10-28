@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Sparkles, Target, TrendingUp, Users } from 'lucide-react';
 import Button from './ui/Button';
 import Card from './ui/Card';
+import type { AppUser } from '../types/user';
 
 interface WelcomeScreenProps {
-  onGetStarted: (userData: { name: string; age: number }) => void;
+  onGetStarted: (userData: AppUser) => void;
 }
 
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGetStarted }) => {
@@ -18,7 +19,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGetStarted }) => {
     } else if (step === 1) {
       setStep(2);
     } else if (step === 2 && name && age) {
-      onGetStarted({ name, age: parseInt(age) });
+      onGetStarted({ id: `guest-${Date.now()}`, name, age: Number.parseInt(age, 10) });
     }
   };
 

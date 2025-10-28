@@ -23,12 +23,13 @@ import Button from './ui/Button';
 import Card from './ui/Card';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { Goal, useGoals } from '../hooks/useGoals';
+import type { AppUser } from '../types/user';
 
 interface AddGoalScreenProps {
   onBack: () => void;
   onGoalCreated?: (goal: Goal) => void;
   onNavigate?: (screen: string) => void;
-  user: { name: string; age: number } | null;
+  user: AppUser | null;
 }
 
 const AddGoalScreen: React.FC<AddGoalScreenProps> = ({ onBack, onGoalCreated, onNavigate, user }) => {

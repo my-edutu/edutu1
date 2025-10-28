@@ -178,7 +178,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 </Button>
               </div>
               
-              <div className="flex items-center space-x-8 pt-4">
+              <div className="flex items-center justify-center space-x-8 pt-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-strong">10K+</div>
                   <div className="text-xs text-soft">Active Users</div>

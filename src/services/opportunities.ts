@@ -1,4 +1,5 @@
 import type { Opportunity, OpportunityDifficulty } from '../types/opportunity';
+import { syncOpportunityInventorySnapshot } from './analyticsAggregator';
 
 const DEFAULT_ENDPOINT = '/data/opportunities.json';
 
@@ -40,6 +41,15 @@ export async function fetchOpportunities(options: FetchOptions = {}): Promise<Op
     .filter((item): item is Opportunity => Boolean(item));
 
   cachedOpportunities = normalised;
+
+  void (async () => {
+    try {
+      await syncOpportunityInventorySnapshot(normalised);
+    } catch (error) {
+      console.error('Failed to sync opportunity analytics snapshot', error);
+    }
+  })();
+
   return normalised;
 }
 

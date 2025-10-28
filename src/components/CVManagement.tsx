@@ -31,12 +31,13 @@ import {
   analyzeCvDocument,
   deleteCvDocument,
   generateCvDocument,
+  getCvDownloadUrl,
   getCvDocument,
   listCvDocuments,
   optimizeCvDocument,
   uploadCvDocument,
   CvDocument
-} from "../services/cvService";
+} from "../services/cvService.supabase";
 
 type Section = "overview" | "library" | "upload" | "analysis" | "optimize" | "generate";
 
@@ -355,21 +356,37 @@ const CVManagement: React.FC<CVManagementProps> = ({ onBack }) => {
     }
   };
 
-  const handleDownload = (record: CvDocument) => {
-    const anchor = document.createElement("a");
-    let href = record.dataUrl ?? "";
-    if (!href) {
-      const blob = new Blob([record.textContent ?? ""], { type: record.mimeType || "text/plain" });
-      href = URL.createObjectURL(blob);
+  const handleDownload = async (record: CvDocument) => {
+    let href: string | null = null;
+
+    try {
+      href = await getCvDownloadUrl(record.id);
+    } catch (error) {
+      console.error("Unable to generate signed download URL. Falling back to local data.", error);
+      if (record.dataUrl) {
+        href = record.dataUrl;
+      } else if (record.textContent) {
+        href = URL.createObjectURL(new Blob([record.textContent], { type: record.mimeType || "text/plain" }));
+      }
     }
+
+    if (!href) {
+      setMessage({ type: "error", message: "Download unavailable. Try again later." });
+      return;
+    }
+
+    const anchor = document.createElement("a");
     anchor.href = href;
+    anchor.rel = "noopener";
     anchor.download = record.fileName || `${record.title}.txt`;
     document.body.appendChild(anchor);
     anchor.click();
     document.body.removeChild(anchor);
-    if (!record.dataUrl) {
-      URL.revokeObjectURL(href);
+
+    if (href.startsWith("blob:")) {
+      setTimeout(() => URL.revokeObjectURL(href as string), 3000);
     }
+
     setMessage({ type: "success", message: "Download started." });
   };
 

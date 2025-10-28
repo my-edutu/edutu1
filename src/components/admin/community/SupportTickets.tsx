@@ -12,7 +12,7 @@ import useSupportTickets, {
 
 const formatDate = (date: Date | null) => {
   if (!date) {
-    return '—';
+    return 'Pending';
   }
   return date.toLocaleString();
 };
@@ -123,7 +123,7 @@ const SupportTickets: React.FC<SupportTicketsProps> = ({ onOpenCountChange }) =>
           <p className="text-sm text-gray-500">Respond to learners and keep the queue under 24 hours.</p>
         </div>
         <Badge variant="outline">
-          {openTickets} open · {tickets.length} total
+          {openTickets} open / {tickets.length} total
         </Badge>
       </div>
       {error && (
@@ -145,7 +145,7 @@ const SupportTickets: React.FC<SupportTicketsProps> = ({ onOpenCountChange }) =>
           {loading && (
             <TableRow>
               <TableCell colSpan={4} className="text-center text-sm text-gray-500">
-                Loading support tickets…
+                Loading support tickets...
               </TableCell>
             </TableRow>
           )}
@@ -187,7 +187,7 @@ const SupportTickets: React.FC<SupportTicketsProps> = ({ onOpenCountChange }) =>
               <div className="mt-6 space-y-4">
                 {messagesLoading && (
                   <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
-                    Loading conversation…
+                    Loading conversation...
                   </div>
                 )}
                 {!messagesLoading && messages.length === 0 && (
@@ -219,7 +219,7 @@ const SupportTickets: React.FC<SupportTicketsProps> = ({ onOpenCountChange }) =>
                 <div className="space-y-3">
                   <Textarea
                     rows={4}
-                    placeholder="Draft your reply…"
+                    placeholder="Draft your reply..."
                     value={reply}
                     onChange={(event) => setReply(event.target.value)}
                   />
@@ -257,7 +257,7 @@ const SupportTickets: React.FC<SupportTicketsProps> = ({ onOpenCountChange }) =>
                         className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
                         disabled={actionLoading}
                       >
-                        {actionLoading ? 'Sending…' : 'Send reply'}
+                        {actionLoading ? 'Sending...' : 'Send reply'}
                       </button>
                     </div>
                   </div>

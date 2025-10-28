@@ -5,10 +5,12 @@ import Button from './ui/Button';
 import Card from './ui/Card';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { usePersistentState } from '../hooks/usePersistentState';
+import { authService, type Profile } from '../lib/auth';
+import type { AppUser } from '../types/user';
 
 interface EditProfileScreenProps {
-  user: { name: string; age: number } | null;
-  setUser: (user: { name: string; age: number } | null) => void;
+  user: AppUser | null;
+  setUser: (user: AppUser | null) => void;
   onBack: () => void;
 }
 
@@ -39,7 +41,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, setUser, on
   const [formData, setFormData] = usePersistentState<ProfileFormData>('profile.formData', {
     ...DEFAULT_FORM,
     name: user?.name || DEFAULT_FORM.name,
-    age: user?.age?.toString() || DEFAULT_FORM.age
+    age: user?.age !== undefined ? user.age.toString() : DEFAULT_FORM.age
   });
   const [profileImage, setProfileImage] = usePersistentState<string | null>('profile.profileImage', null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -50,7 +52,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, setUser, on
       setFormData((prev) => ({
         ...prev,
         name: user.name,
-        age: user.age.toString()
+        age: user.age !== undefined ? user.age.toString() : ''
       }));
     }
   }, [user, setFormData]);
@@ -101,7 +103,7 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, setUser, on
     reader.readAsDataURL(file);
   };
 
-  const handleSave = (event?: FormEvent<HTMLFormElement> | ReactMouseEvent<HTMLButtonElement>) => {
+  const handleSave = async (event?: FormEvent<HTMLFormElement> | ReactMouseEvent<HTMLButtonElement>) => {
     event?.preventDefault();
     event?.stopPropagation();
 
@@ -116,10 +118,49 @@ const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ user, setUser, on
       return;
     }
 
-    setUser({ name: formData.name, age: parsedAge });
-    setSaveMessage('Your profile has been updated successfully.');
-    setTimeout(() => setSaveMessage(null), 3500);
-    onBack();
+    try {
+      // Update user in auth metadata
+      await authService.updateUserProfile({
+        name: formData.name,
+        full_name: formData.name,
+        age: parsedAge,
+      });
+
+      // Update user in the profiles table
+      const user = await authService.getCurrentUser();
+      if (user) {
+        const profileData: Profile = {
+          user_id: user.id,
+          name: formData.name,
+          full_name: formData.name,
+          age: parsedAge,
+          email: formData.email,
+          bio: formData.bio,
+          preferences: {},
+          updated_at: new Date().toISOString(),
+        };
+
+        await authService.upsertProfile(profileData);
+        
+        // Update the user in the app state
+        const nextUser: AppUser = { ...user, name: formData.name };
+        if (Number.isFinite(parsedAge)) {
+          nextUser.age = parsedAge;
+        } else {
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+          delete (nextUser as { age?: number }).age;
+        }
+        setUser(nextUser);
+        setSaveMessage('Your profile has been updated successfully.');
+        setTimeout(() => setSaveMessage(null), 3500);
+        onBack();
+      } else {
+        setSaveMessage('Could not update profile: user not found.');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setSaveMessage('Something went wrong while saving your profile. Please try again.');
+    }
   };
 
   return (

@@ -1,78 +1,103 @@
-import React, { useState } from 'react';
-import {
-  Apple,
-  ArrowRight,
-  AtSign,
-  Eye,
-  EyeOff,
-  Lock,
-  Sparkles,
-  User,
-} from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Loader2, Sparkles } from 'lucide-react';
 import Button from './ui/Button';
 import Card from './ui/Card';
+import { authService, getProfileFromUser } from '../lib/auth';
+import type { AppUser } from '../types/user';
 
 interface AuthScreenProps {
-  onGetStarted: (userData: { name: string; age: number }) => void;
+  onAuthSuccess: (userData: AppUser) => void;
 }
 
-const socialProviders = [
-  {
-    name: 'Continue with Google',
-    accent: 'bg-gradient-to-r from-[#4285F4] to-[#3367D6] text-white',
-    icon: Sparkles,
-  },
-  {
-    name: 'Continue with Microsoft',
-    accent: 'bg-neutral-900 text-inverse',
-    icon: AtSign,
-  },
-  {
-    name: 'Continue with Apple',
-    accent: 'bg-neutral-800 text-inverse',
-    icon: Apple,
-  },
-];
+function getMessageFromError(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message: string }).message);
+  }
+  return 'Something went wrong. Please try again.';
+}
 
-const identities = [
-  { name: 'Amara Okafor', age: 22 },
-  { name: 'Kwame Asante', age: 24 },
-  { name: 'Fatima Hassan', age: 21 },
-  { name: 'Chidi Nwosu', age: 23 },
-  { name: 'Zara Mwangi', age: 20 },
-  { name: 'Kofi Mensah', age: 25 },
-];
+const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>('Checking your session...');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-const AuthScreen: React.FC<AuthScreenProps> = ({ onGetStarted }) => {
-  const [mode, setMode] = useState<'login' | 'signup'>('signup');
-  const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    age: '',
-  });
-
-  const handleSocialAuth = () => {
-    const profile = identities[Math.floor(Math.random() * identities.length)];
-    onGetStarted(profile);
-  };
-
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (mode === 'login') {
-      handleSocialAuth();
-      return;
+  const syncSession = useCallback(async () => {
+    try {
+      const session = await authService.getSession();
+      if (session?.user) {
+        const profile = getProfileFromUser(session.user);
+        if (profile) {
+          onAuthSuccess(profile);
+          return true;
+        }
+      }
+    } catch {
+      // ignore and fall back to direct user lookup
     }
 
-    if (formData.name && formData.age) {
-      onGetStarted({ name: formData.name, age: parseInt(formData.age, 10) });
+    try {
+      const user = await authService.getCurrentUser();
+      const profile = getProfileFromUser(user);
+      if (profile) {
+        onAuthSuccess(profile);
+        return true;
+      }
+    } catch {
+      // still no user, user must authenticate
     }
-  };
 
-  const toggleMode = () => {
-    setMode((prev) => (prev === 'login' ? 'signup' : 'login'));
+    return false;
+  }, [onAuthSuccess]);
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+
+    syncSession()
+      .then((hasSession) => {
+        if (isMounted) {
+          setStatusMessage(hasSession ? 'Signing you in...' : null);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    const {
+      data: { subscription },
+    } = authService.onAuthStateChange((_event, session) => {
+      if (!isMounted || !session?.user) {
+        return;
+      }
+
+      const profile = getProfileFromUser(session.user);
+      if (profile) {
+        onAuthSuccess(profile);
+        setStatusMessage(null);
+        setErrorMessage(null);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [onAuthSuccess, syncSession]);
+
+  const handleGoogleAuth = async () => {
+    setErrorMessage(null);
+    setStatusMessage('Redirecting to Google for secure sign-in...');
+    setIsLoading(true);
+
+    try {
+      await authService.signInWithGoogle(window.location.origin);
+    } catch (error) {
+      setErrorMessage(getMessageFromError(error));
+      setStatusMessage(null);
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -83,142 +108,52 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onGetStarted }) => {
             <Sparkles size={22} />
           </div>
           <div className="space-y-2">
-            <h1 className="text-3xl font-semibold">
-              {mode === 'login' ? 'Welcome back to Edutu' : 'Create your Edutu account'}
-            </h1>
+            <h1 className="text-3xl font-semibold">Sign in to Edutu</h1>
             <p className="text-soft">
-              {mode === 'login'
-                ? 'Stay accountable, synced, and inspired. Sign in to continue where you left off.'
-                : 'Unlock personalised roadmaps, smart reminders, and a high-trust community designed for mobile.'}
+              We use Google for secure, password-free access. Sign in to unlock personalised roadmaps, analytics,
+              and your AI mentor.
             </p>
           </div>
         </header>
 
-        <section className="space-y-3">
-          {socialProviders.map((provider) => (
-            <button
-              key={provider.name}
-              onClick={handleSocialAuth}
-              className={`w-full rounded-2xl px-4 py-3 flex items-center justify-center gap-3 font-medium transition-transform hover:scale-[1.01] active:scale-[0.99] ${provider.accent}`}
-            >
-              <provider.icon size={18} />
-              {provider.name}
-            </button>
-          ))}
-        </section>
-
-        <div className="flex items-center gap-4 text-xs text-muted">
-          <div className="h-px flex-1 bg-border-subtle" />
-          <span>or continue with email</span>
-          <div className="h-px flex-1 bg-border-subtle" />
-        </div>
-
         <Card className="p-6 space-y-5">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === 'signup' && (
-              <div className="space-y-2">
-                <label htmlFor="full-name" className="text-sm font-medium text-muted">
-                  Full name
-                </label>
-                <div className="relative">
-                  <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
-                  <input
-                    id="full-name"
-                    type="text"
-                    placeholder="Enter your full name"
-                    value={formData.name}
-                    onChange={(event) => setFormData({ ...formData, name: event.target.value })}
-                    className="w-full rounded-2xl border border-subtle bg-surface-layer px-11 py-3 text-sm focus-visible:border-brand-400 focus-visible:shadow-focus"
-                    required
-                  />
-                </div>
-              </div>
+          <Button
+            type="button"
+            onClick={handleGoogleAuth}
+            disabled={isLoading}
+            className="w-full justify-center gap-2 bg-gradient-to-r from-[#4285F4] to-[#3367D6] text-white hover:opacity-95 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                <span>Starting Google sign-in...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles size={18} />
+                <span>Continue with Google</span>
+              </>
             )}
+          </Button>
 
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium text-muted">
-                Email address
-              </label>
-              <div className="relative">
-                <AtSign size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
-                <input
-                  id="email"
-                  type="email"
-                  placeholder="name@email.com"
-                  value={formData.email}
-                  onChange={(event) => setFormData({ ...formData, email: event.target.value })}
-                  className="w-full rounded-2xl border border-subtle bg-surface-layer px-11 py-3 text-sm focus-visible:border-brand-400 focus-visible:shadow-focus"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-muted">
-                Password
-              </label>
-              <div className="relative">
-                <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Create a secure password"
-                  value={formData.password}
-                  onChange={(event) => setFormData({ ...formData, password: event.target.value })}
-                  className="w-full rounded-2xl border border-subtle bg-surface-layer px-11 py-3 text-sm focus-visible:border-brand-400 focus-visible:shadow-focus"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-strong transition-theme"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
-
-            {mode === 'signup' && (
-              <div className="space-y-2">
-                <label htmlFor="age" className="text-sm font-medium text-muted">
-                  Age
-                </label>
-                <input
-                  id="age"
-                  type="number"
-                  min="16"
-                  max="30"
-                  placeholder="Your age"
-                  value={formData.age}
-                  onChange={(event) => setFormData({ ...formData, age: event.target.value })}
-                  className="w-full rounded-2xl border border-subtle bg-surface-layer px-4 py-3 text-sm focus-visible:border-brand-400 focus-visible:shadow-focus"
-                  required
-                />
-              </div>
-            )}
-
-            <div className="py-1">
-              <Button type="submit" className="w-full justify-center">
-                {mode === 'login' ? 'Sign in and continue' : 'Create account and continue'}
-                <ArrowRight size={18} className="ml-1" />
-              </Button>
-            </div>
-          </form>
-
-          {mode === 'login' && (
-            <div className="text-center">
-              <button className="text-sm text-brand-600 hover:underline">Forgot password?</button>
-            </div>
-          )}
+          <div className="rounded-2xl bg-surface-subtle px-4 py-3 text-sm text-muted">
+            We only request your name and email. Edutu never sees your password.
+          </div>
         </Card>
 
-        <div className="text-center text-sm text-muted">
-          {mode === 'login' ? "Don't have an account yet?" : 'Already using Edutu?'}
-          <button onClick={toggleMode} className="ml-2 text-brand-600 hover:underline font-medium">
-            {mode === 'login' ? 'Create one' : 'Sign in'}
-          </button>
-        </div>
+        {errorMessage && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</div>
+        )}
+
+        {statusMessage && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {statusMessage}
+          </div>
+        )}
+
+        <p className="text-center text-xs text-muted">
+          Having trouble? Make sure pop-ups are allowed for this site and try again.
+        </p>
       </div>
     </div>
   );

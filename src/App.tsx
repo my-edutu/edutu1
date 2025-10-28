@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import LandingPage from './components/LandingPage';
 import AuthScreen from './components/AuthScreen';
 import ChatInterface from './components/ChatInterface';
@@ -21,27 +21,76 @@ import IntroductionPopup from './components/IntroductionPopup';
 import AllGoals from './components/AllGoals';
 import { useDarkMode } from './hooks/useDarkMode';
 import { Goal, useGoals } from './hooks/useGoals';
+import { authService, getProfileFromUser } from './lib/auth';
 import { useAnalytics } from './hooks/useAnalytics';
 import type { Opportunity } from './types/opportunity';
+import type { AppUser } from './types/user';
 
 export type Screen = 'landing' | 'auth' | 'chat' | 'dashboard' | 'all-goals' | 'profile' | 'opportunity-detail' | 'all-opportunities' | 'roadmap' | 'opportunity-roadmap' | 'settings' | 'profile-edit' | 'notifications' | 'privacy' | 'help' | 'cv-management' | 'add-goal' | 'community-marketplace';
 
 export function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('landing');
-  const [user, setUser] = useState<{ name: string; age: number } | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [showIntroPopup, setShowIntroPopup] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
   const { goals, createGoal } = useGoals();
   const { isDarkMode } = useDarkMode();
   const { recordOpportunityExplored } = useAnalytics();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const restoreSession = async () => {
+      try {
+        const session = await authService.getSession();
+        if (!isMounted || !session?.user) {
+          return;
+        }
+
+        const profile = getProfileFromUser(session.user);
+        if (profile) {
+          setUser(profile);
+          setCurrentScreen((previous) => (previous === 'landing' ? 'dashboard' : previous));
+        }
+      } catch (error) {
+        console.error('Failed to restore Supabase session', error);
+      }
+    };
+
+    restoreSession();
+
+    const { data: { subscription } } = authService.onAuthStateChange((_event, session) => {
+      if (!isMounted) {
+        return;
+      }
+
+      if (session?.user) {
+        const profile = getProfileFromUser(session.user);
+        if (profile) {
+          setUser(profile);
+        }
+
+        setCurrentScreen((previous) => (previous === 'auth' || previous === 'landing' ? 'dashboard' : previous));
+      } else {
+        setUser(null);
+        setSelectedGoalId(null);
+        setShowIntroPopup(false);
+        setCurrentScreen('landing');
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleGetStarted = (userData?: { name: string; age: number }) => {
+  const handleGetStarted = (userData?: AppUser) => {
     scrollToTop();
     if (userData) {
       setUser(userData);
@@ -51,21 +100,24 @@ export function App() {
     }
   };
 
-  const handleAuthSuccess = (userData: { name: string; age: number }) => {
+  const handleAuthSuccess = (userData: AppUser) => {
     scrollToTop();
     setUser(userData);
     setShowIntroPopup(true);
   };
 
-  const handleIntroComplete = (profileData: any) => {
-    setUserProfile(profileData);
+  const handleIntroComplete = (_profileData?: unknown) => {
     setShowIntroPopup(false);
     setCurrentScreen('dashboard');
   };
 
   const handleOpportunitySelect = (opportunity: Opportunity) => {
     scrollToTop();
-    recordOpportunityExplored();
+    void recordOpportunityExplored({
+      id: opportunity.id,
+      title: opportunity.title,
+      category: opportunity.category
+    });
     setSelectedOpportunity(opportunity);
     setCurrentScreen('opportunity-detail');
   };
@@ -82,12 +134,19 @@ export function App() {
     setCurrentScreen('roadmap');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     scrollToTop();
-    setUser(null);
-    setUserProfile(null);
-    setSelectedGoalId(null);
-    setCurrentScreen('landing');
+    try {
+      await authService.signOut();
+    } catch (error) {
+      console.error('Failed to sign out from Supabase', error);
+    } finally {
+      setUser(null);
+      setSelectedGoalId(null);
+      setSelectedOpportunity(null);
+      setShowIntroPopup(false);
+      setCurrentScreen('landing');
+    }
   };
 
   const handleNavigate = (screen: Screen | string) => {
@@ -142,7 +201,7 @@ export function App() {
       case 'landing':
         return <LandingPage onGetStarted={() => handleGetStarted()} />;
       case 'auth':
-        return <AuthScreen onGetStarted={handleAuthSuccess} />;
+        return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
       case 'chat':
         return <ChatInterface user={user} />;
       case 'dashboard':
@@ -251,6 +310,7 @@ export function App() {
         return (
           <HelpScreen
             onBack={() => handleBack('settings')}
+            user={user}
           />
         );
       case 'cv-management':

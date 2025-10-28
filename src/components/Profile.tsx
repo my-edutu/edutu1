@@ -18,10 +18,11 @@ import { useDarkMode } from '../hooks/useDarkMode';
 import CVManagement from './CVManagement';
 import { usePersistentState } from '../hooks/usePersistentState';
 import { useAnalytics } from '../hooks/useAnalytics';
+import type { AppUser } from '../types/user';
 
 interface ProfileProps {
-  user: { name: string; age: number } | null;
-  setUser: (user: { name: string; age: number } | null) => void;
+  user: AppUser | null;
+  setUser: (user: AppUser | null) => void;
   onNavigate: (screen: Screen) => void;
   onLogout: () => void;
 }
@@ -53,7 +54,7 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, onNavigate, onLogout }
   const [profileImage] = usePersistentState<string | null>('profile.profileImage', null);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(user?.name || storedProfile.name || '');
-  const [editAge, setEditAge] = useState(user?.age?.toString() || storedProfile.age || '');
+  const [editAge, setEditAge] = useState(user?.age !== undefined ? user.age.toString() : storedProfile.age || '');
   const [bio, setBio] = useState(storedProfile.bio || PROFILE_STORAGE_DEFAULT.bio);
   const [showCVManagement, setShowCVManagement] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -63,7 +64,7 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, onNavigate, onLogout }
 
   useEffect(() => {
     setEditName(user?.name || storedProfile.name || '');
-    setEditAge(user?.age?.toString() || storedProfile.age || '');
+    setEditAge(user?.age !== undefined ? user.age.toString() : storedProfile.age || '');
   }, [user, storedProfile.name, storedProfile.age]);
 
   useEffect(() => {
@@ -72,7 +73,17 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, onNavigate, onLogout }
 
   const handleSave = () => {
     if (editName && editAge) {
-      setUser({ name: editName, age: parseInt(editAge) });
+      if (user) {
+        const parsedAge = Number.parseInt(editAge, 10);
+        const nextUser: AppUser = { ...user, name: editName };
+        if (Number.isFinite(parsedAge)) {
+          nextUser.age = parsedAge;
+        } else {
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+          delete (nextUser as { age?: number }).age;
+        }
+        setUser(nextUser);
+      }
       setStoredProfile((prev) => ({
         ...prev,
         name: editName,
@@ -84,7 +95,7 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, onNavigate, onLogout }
 
   const handleCancel = () => {
     setEditName(user?.name || '');
-    setEditAge(user?.age.toString() || '');
+    setEditAge(user?.age !== undefined ? user.age.toString() : '');
     setIsEditing(false);
   };
 

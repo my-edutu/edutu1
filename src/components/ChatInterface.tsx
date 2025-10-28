@@ -18,6 +18,7 @@ import {
 import Button from './ui/Button';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useAnalytics } from '../hooks/useAnalytics';
+import type { AppUser } from '../types/user';
 
 type MessageActionType = 'scholarship' | 'community' | 'expert' | 'link';
 
@@ -35,7 +36,7 @@ interface Message {
 }
 
 interface ChatInterfaceProps {
-  user: { name: string; age: number } | null;
+  user: AppUser | null;
 }
 
 type IconType = React.ComponentType<{ size?: number; className?: string }>;
@@ -57,11 +58,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
   const { recordChatSession } = useAnalytics();
   const hasRecordedSessionRef = useRef(false);
 
-  const quickPrompts: Array<{ text: string; icon: IconType }> = [
-    { text: 'Help me find scholarships', icon: Sparkles },
-    { text: 'Career guidance', icon: Brain },
-    { text: 'Skills to develop', icon: Zap },
-    { text: 'Networking tips', icon: Users }
+  const quickPrompts: Array<{ text: string; icon: IconType; topic: string }> = [
+    { text: 'Help me find scholarships', icon: Sparkles, topic: 'Scholarships' },
+    { text: 'Career guidance', icon: Brain, topic: 'Career growth' },
+    { text: 'Skills to develop', icon: Zap, topic: 'Skill development' },
+    { text: 'Networking tips', icon: Users, topic: 'Networking' }
   ];
 
   const scrollToBottom = () => {
@@ -82,13 +83,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
     );
   };
 
-  const handleSend = async (overrideText?: string) => {
+  const handleSend = async (overrideText?: string, topic?: string) => {
     const text = (overrideText ?? input).trim();
 
     if (!text) return;
 
+    const sessionTopic = topic ?? 'Custom question';
+
     if (!hasRecordedSessionRef.current) {
-      recordChatSession();
+      void recordChatSession(sessionTopic);
       hasRecordedSessionRef.current = true;
     }
 
@@ -141,8 +144,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
     }
   };
 
-  const handleQuickPrompt = (prompt: string) => {
-    handleSend(prompt);
+  const handleQuickPrompt = (prompt: string, topic: string) => {
+    handleSend(prompt, topic);
   };
 
   const handleButtonClick = (button: { text: string; type: MessageActionType; data?: Record<string, unknown> }) => {
@@ -285,7 +288,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                 return (
                   <button
                     key={index}
-                    onClick={() => handleQuickPrompt(prompt.text)}
+                    onClick={() => handleQuickPrompt(prompt.text, prompt.topic)}
                     className={`p-4 text-left ${
                       isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' : 'bg-white border-gray-200 hover:bg-gray-50'
                     } border rounded-2xl transition-all hover:scale-105 shadow-sm group`}
@@ -339,7 +342,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' && !event.shiftKey) {
                     event.preventDefault();
-                    handleSend();
+                    handleSend(undefined, 'Custom question');
                   }
                 }}
                 placeholder="Ask me anything about opportunities, goals, or career advice..."
@@ -369,7 +372,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
               {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
             </button>
 
-            <Button onClick={() => handleSend()} disabled={!input.trim() || isTyping} className="p-3 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed">
+            <Button
+              onClick={() => handleSend(undefined, 'Custom question')}
+              disabled={!input.trim() || isTyping}
+              className="p-3 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <Send size={20} />
             </Button>
           </div>

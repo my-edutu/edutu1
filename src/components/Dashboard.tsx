@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Award,
   Bell,
@@ -22,9 +22,10 @@ import NotificationInbox from './NotificationInbox';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useGoals } from '../hooks/useGoals';
 import { useOpportunities } from '../hooks/useOpportunities';
+import type { AppUser } from '../types/user';
 
 interface DashboardProps {
-  user: { name: string; age: number } | null;
+  user: AppUser | null;
   onOpportunityClick: (opportunity: any) => void;
   onViewAllOpportunities: () => void;
   onGoalClick: (goalId: string) => void;
@@ -325,7 +326,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {
         label: 'Active goals',
         value: activeGoals.length.toString(),
-        helper: `${completedGoals.length} completed Â· ${completionRate}% done`
+        helper: `${completedGoals.length} completed / ${completionRate}% done`
       },
       {
         label: 'Consistency',
@@ -344,7 +345,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         label: 'Next deadline',
         value: nextDeadlineGoal ? formatDateShort(nextDeadlineGoal.deadline) : 'No deadline',
         helper: nextDeadlineGoal
-          ? `${describeDueDate(nextDeadlineGoal.deadline)} · ${nextDeadlineGoal.title}`
+          ? `${describeDueDate(nextDeadlineGoal.deadline)} � ${nextDeadlineGoal.title}`
           : 'Add a deadline to stay on pace'
       }
     ],
@@ -933,4 +934,5 @@ const Dashboard: React.FC<DashboardProps> = ({
 };
 
 export default Dashboard;
+
 

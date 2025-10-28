@@ -28,6 +28,7 @@ import { useToast } from './ui/ToastProvider';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { db } from '../firebase/firebase';
 import { addDoc, collection, onSnapshot, orderBy, query, serverTimestamp } from 'firebase/firestore';
+import type { AppUser } from '../types/user';
 
 interface CommunityRoadmap {
   id: string;
@@ -60,7 +61,7 @@ interface CommunityRoadmap {
 interface CommunityMarketplaceProps {
   onBack: () => void;
   onRoadmapSelect: (roadmap: CommunityRoadmap) => void;
-  user: { name: string; age: number } | null;
+  user: AppUser | null;
 }
 
 interface CreateRoadmapForm {

@@ -1,12 +1,17 @@
 /* eslint-disable no-restricted-globals */
+import { supabase } from '../lib/supabaseClient';
+
 export interface CvDocument {
   id: string;
+  userId: string; // Changed from user_id to userId for consistency with TypeScript naming
   title: string;
   fileName: string;
   fileSize: number;
   mimeType: string;
   uploadedAt: string;
-  dataUrl: string | null;
+  dataUrl?: string | null;
+  storagePath?: string;
+  downloadUrl?: string | null;
   textContent: string;
   stats: CvStats;
   jobTarget?: string;
@@ -115,7 +120,53 @@ export interface CvGenerationResult {
   draft: string;
 }
 
-const STORAGE_KEY = 'edutu.cv.records';
+const CV_BUCKET = 'cv-files';
+const MAX_CV_PER_USER = 3;
+const DEFAULT_SIGNED_URL_TTL = 60;
+
+const sanitizeFileName = (value: string): string => {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9.\-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    || 'cv';
+};
+
+const buildStoragePath = (userId: string, fileName: string): string => {
+  const safeName = sanitizeFileName(fileName);
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return `${userId}/${suffix}-${safeName}`;
+};
+
+const ensureCvQuota = async (userId: string): Promise<void> => {
+  const { count, error } = await supabase
+    .from('cv_records')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error checking CV quota:', error);
+    throw error;
+  }
+
+  if ((count ?? 0) >= MAX_CV_PER_USER) {
+    throw new Error(`You can store up to ${MAX_CV_PER_USER} CVs. Please delete an existing CV first.`);
+  }
+};
+
+const createSignedDownloadUrl = async (path: string, expiresIn = DEFAULT_SIGNED_URL_TTL): Promise<string | null> => {
+  const { data, error } = await supabase.storage
+    .from(CV_BUCKET)
+    .createSignedUrl(path, expiresIn);
+
+  if (error) {
+    console.warn('Failed to create signed URL:', error);
+    return null;
+  }
+
+  return data?.signedUrl ?? null;
+};
 
 const DEFAULT_KEYWORDS = [
   'leadership',
@@ -185,10 +236,6 @@ const SECTION_MARKERS: Array<{ label: string; aliases: RegExp; weight: number }>
   { label: 'Certifications', aliases: /certifications|licenses|accreditations/i, weight: 0.1 }
 ];
 
-const hasWindow = typeof window !== 'undefined';
-
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 const createId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -196,51 +243,7 @@ const createId = () => {
   return `cv_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 };
 
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-const getLocalStorageRecords = (): CvDocument[] => {
-  if (!hasWindow) {
-    return [];
-  }
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-    const parsed = JSON.parse(raw) as CvDocument[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (_error) {
-    return [];
-  }
-};
-
-const persistRecords = (records: CvDocument[]) => {
-  if (!hasWindow) {
-    return;
-  }
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-};
-
-const upsertRecord = (record: CvDocument) => {
-  const records = getLocalStorageRecords();
-  const index = records.findIndex((item) => item.id === record.id);
-  if (index >= 0) {
-    records[index] = record;
-  } else {
-    records.unshift(record);
-  }
-  persistRecords(records);
-  return record;
-};
-
-const readFileAsDataUrl = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
 
 const readFileAsText = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -523,16 +526,6 @@ const buildOptimizationPlan = (record: CvDocument, report: AtsReport, payload?: 
   };
 };
 
-const toDataUrlFromText = async (text: string) => {
-  const blob = new Blob([text], { type: 'text/plain' });
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
-};
-
 const buildDraftFromGenerationPayload = (payload: CvGenerationPayload): string => {
   const lines: string[] = [];
   lines.push(payload.fullName);
@@ -573,130 +566,462 @@ const buildDraftFromGenerationPayload = (payload: CvGenerationPayload): string =
 };
 
 export const listCvDocuments = async (): Promise<CvDocument[]> => {
-  await delay(120);
-  return getLocalStorageRecords();
+  const user = await supabase.auth.getUser();
+  if (!user.data.user) {
+    throw new Error('User not authenticated');
+  }
+
+  const { data, error } = await supabase
+    .from('cv_records')
+    .select('*')
+    .eq('user_id', user.data.user.id)
+    .order('uploaded_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching CV documents:', error);
+    throw error;
+  }
+
+  // Transform the data to match our interface
+  return data.map(item => ({
+    id: item.id,
+    userId: item.user_id,
+    title: item.title,
+    fileName: item.file_name,
+    fileSize: item.file_size,
+    mimeType: item.mime_type,
+    uploadedAt: item.uploaded_at,
+    dataUrl: null,
+    storagePath: item.storage_path || undefined,
+    downloadUrl: null,
+    textContent: item.text_content,
+    stats: item.stats,
+    jobTarget: item.job_target || undefined,
+    jobDescription: item.job_description || undefined,
+    analysis: item.analysis || undefined,
+    optimization: item.optimization || undefined,
+    generated: item.generated
+  }));
 };
 
 export const uploadCvDocument = async (payload: UploadCvPayload): Promise<CvDocument> => {
+  const user = await supabase.auth.getUser();
+  if (!user.data.user) {
+    throw new Error('User not authenticated');
+  }
+
+  await ensureCvQuota(user.data.user.id);
+
   const { file, jobDescription, jobTarget, customKeywords } = payload;
-  const [dataUrl, textContent] = await Promise.all([
-    readFileAsDataUrl(file).catch(() => null),
-    readFileAsText(file).catch(() => '')
-  ]);
+  const textContent = await readFileAsText(file).catch(() => '');
 
   const stats = buildStats(textContent, { jobDescription, jobTarget, customKeywords });
-  const record: CvDocument = {
-    id: createId(),
-    title: deriveTitleFromContent(file.name, textContent),
-    fileName: file.name,
-    fileSize: file.size,
-    mimeType: file.type || 'application/octet-stream',
-    uploadedAt: new Date().toISOString(),
-    dataUrl,
-    textContent,
-    stats,
-    jobDescription,
-    jobTarget
-  };
 
-  upsertRecord(record);
-  await delay(150);
-  return record;
+  const storagePath = buildStoragePath(user.data.user.id, file.name);
+
+  const { error: uploadError } = await supabase.storage
+    .from(CV_BUCKET)
+    .upload(storagePath, file, {
+      cacheControl: '3600',
+      contentType: file.type || 'application/octet-stream',
+      upsert: false
+    });
+
+  if (uploadError) {
+    console.error('Error uploading CV file to storage:', uploadError);
+    throw uploadError;
+  }
+
+  const { data, error } = await supabase
+    .from('cv_records')
+    .insert([{
+      user_id: user.data.user.id,
+      title: deriveTitleFromContent(file.name, textContent),
+      file_name: file.name,
+      file_size: file.size,
+      mime_type: file.type || 'application/octet-stream',
+      text_content: textContent,
+      stats,
+      job_target: jobTarget,
+      job_description: jobDescription,
+      storage_path: storagePath
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error saving CV record metadata:', error);
+    await supabase.storage
+      .from(CV_BUCKET)
+      .remove([storagePath])
+      .catch((removeError) => console.warn('Failed to clean up storage object after DB error:', removeError));
+    throw error;
+  }
+
+  const downloadUrl = data.storage_path ? await createSignedDownloadUrl(data.storage_path) : null;
+
+  // Transform the returned data to match our interface
+  return {
+    id: data.id,
+    userId: data.user_id,
+    title: data.title,
+    fileName: data.file_name,
+    fileSize: data.file_size,
+    mimeType: data.mime_type,
+    uploadedAt: data.uploaded_at,
+    dataUrl: null,
+    storagePath: data.storage_path || undefined,
+    downloadUrl,
+    textContent: data.text_content,
+    stats: data.stats,
+    jobTarget: data.job_target || undefined,
+    jobDescription: data.job_description || undefined,
+    analysis: data.analysis || undefined,
+    optimization: data.optimization || undefined,
+    generated: data.generated
+  };
 };
 
 export const getCvDocument = async (cvId: string): Promise<CvDocument | undefined> => {
-  await delay(80);
-  return getLocalStorageRecords().find((record) => record.id === cvId);
+  const user = await supabase.auth.getUser();
+  if (!user.data.user) {
+    throw new Error('User not authenticated');
+  }
+
+  const { data, error } = await supabase
+    .from('cv_records')
+    .select('*')
+    .eq('id', cvId)
+    .eq('user_id', user.data.user.id)
+    .single();
+
+  if (error) {
+    console.error('Error fetching CV document:', error);
+    return undefined;
+  }
+
+  if (!data) {
+    return undefined;
+  }
+
+  // Transform the returned data to match our interface
+  const downloadUrl = data.storage_path ? await createSignedDownloadUrl(data.storage_path) : null;
+
+  return {
+    id: data.id,
+    userId: data.user_id,
+    title: data.title,
+    fileName: data.file_name,
+    fileSize: data.file_size,
+    mimeType: data.mime_type,
+    uploadedAt: data.uploaded_at,
+     dataUrl: null,
+    storagePath: data.storage_path || undefined,
+    downloadUrl,
+    textContent: data.text_content,
+    stats: data.stats,
+    jobTarget: data.job_target || undefined,
+    jobDescription: data.job_description || undefined,
+    analysis: data.analysis || undefined,
+    optimization: data.optimization || undefined,
+    generated: data.generated
+  };
 };
 
-export const getCvDownloadUrl = async (cvId: string): Promise<string> => {
-  const record = await getCvDocument(cvId);
-  if (!record) {
-    throw new Error('CV document not found');
+export const getCvDownloadUrl = async (cvId: string, expiresIn = DEFAULT_SIGNED_URL_TTL): Promise<string> => {
+  const user = await supabase.auth.getUser();
+  if (!user.data.user) {
+    throw new Error('User not authenticated');
   }
 
-  if (record.dataUrl) {
-    return record.dataUrl;
+  const { data, error } = await supabase
+    .from('cv_records')
+    .select('storage_path')
+    .eq('id', cvId)
+    .eq('user_id', user.data.user.id)
+    .single();
+
+  if (error) {
+    console.error('Error looking up CV storage path:', error);
+    throw error;
   }
 
-  const blob = new Blob([record.textContent ?? ''], { type: record.mimeType || 'text/plain' });
-  return URL.createObjectURL(blob);
+  if (!data?.storage_path) {
+    throw new Error('CV file is not available for download.');
+  }
+
+  const signedUrl = await createSignedDownloadUrl(data.storage_path, expiresIn);
+  if (!signedUrl) {
+    throw new Error('Unable to create a temporary download link right now.');
+  }
+
+  return signedUrl;
 };
 
 export const analyzeCvDocument = async (payload: AtsAnalysisPayload): Promise<AtsReport> => {
-  await delay(240);
-  const records = getLocalStorageRecords();
-  const record = records.find((item) => item.id === payload.cvId);
-  if (!record) {
+  const user = await supabase.auth.getUser();
+  if (!user.data.user) {
+    throw new Error('User not authenticated');
+  }
+
+  // Fetch the CV document from the database
+  const { data: cvData, error: cvError } = await supabase
+    .from('cv_records')
+    .select('*')
+    .eq('id', payload.cvId)
+    .eq('user_id', user.data.user.id)
+    .single();
+
+  if (cvError || !cvData) {
     throw new Error('CV document not found');
   }
 
-  const updatedStats = buildStats(record.textContent, {
-    jobDescription: payload.jobDescription ?? record.jobDescription,
-    jobTarget: payload.jobTarget ?? record.jobTarget,
+  // Build updated stats with the provided parameters
+  const updatedStats = buildStats(cvData.text_content, {
+    jobDescription: payload.jobDescription ?? cvData.job_description,
+    jobTarget: payload.jobTarget ?? cvData.job_target,
     customKeywords: payload.customKeywords
   });
+
+  // Compute ATS analysis
   const analysis = computeAtsScore(updatedStats);
 
-  const updatedRecord: CvDocument = {
-    ...record,
-    stats: updatedStats,
-    jobDescription: payload.jobDescription ?? record.jobDescription,
-    jobTarget: payload.jobTarget ?? record.jobTarget,
-    analysis
-  };
+  // Update the document in the database with the analysis
+  const { error: updateError } = await supabase
+    .from('cv_records')
+    .update({
+      stats: updatedStats,
+      job_description: payload.jobDescription ?? cvData.job_description,
+      job_target: payload.jobTarget ?? cvData.job_target,
+      analysis: analysis
+    })
+    .eq('id', payload.cvId)
+    .eq('user_id', user.data.user.id);
 
-  upsertRecord(updatedRecord);
+  if (updateError) {
+    console.error('Error updating CV with analysis:', updateError);
+    throw updateError;
+  }
+
   return analysis;
 };
 
 export const optimizeCvDocument = async (payload: OptimizationPayload): Promise<OptimizationResult> => {
-  await delay(260);
-  const records = getLocalStorageRecords();
-  const record = records.find((item) => item.id === payload.cvId);
-  if (!record) {
+  const user = await supabase.auth.getUser();
+  if (!user.data.user) {
+    throw new Error('User not authenticated');
+  }
+
+  // Fetch the CV document from the database
+  const { data: cvData, error: cvError } = await supabase
+    .from('cv_records')
+    .select('*')
+    .eq('id', payload.cvId)
+    .eq('user_id', user.data.user.id)
+    .single();
+
+  if (cvError || !cvData) {
     throw new Error('CV document not found');
   }
-  const analysis = record.analysis ?? computeAtsScore(record.stats);
-  const optimization = buildOptimizationPlan(record, analysis, payload);
-  const updatedRecord: CvDocument = { ...record, optimization };
-  upsertRecord(updatedRecord);
+
+  // Use existing analysis or compute a new one
+  const analysis = cvData.analysis ? cvData.analysis : computeAtsScore(cvData.stats);
+
+  // Build optimization plan
+  const optimization = buildOptimizationPlan(
+    {
+      id: cvData.id,
+      userId: cvData.user_id,
+      title: cvData.title,
+      fileName: cvData.file_name,
+      fileSize: cvData.file_size,
+      mimeType: cvData.mime_type,
+      uploadedAt: cvData.uploaded_at,
+      textContent: cvData.text_content,
+      stats: cvData.stats,
+      jobTarget: cvData.job_target || undefined,
+      jobDescription: cvData.job_description || undefined,
+      generated: cvData.generated
+    },
+    analysis,
+    payload
+  );
+
+  // Update the document in the database with the optimization
+  const { error: updateError } = await supabase
+    .from('cv_records')
+    .update({
+      optimization: optimization
+    })
+    .eq('id', payload.cvId)
+    .eq('user_id', user.data.user.id);
+
+  if (updateError) {
+    console.error('Error updating CV with optimization:', updateError);
+    throw updateError;
+  }
+
   return optimization;
 };
 
 export const deleteCvDocument = async (cvId: string): Promise<void> => {
-  await delay(80);
-  const remaining = getLocalStorageRecords().filter((record) => record.id !== cvId);
-  persistRecords(remaining);
+  const user = await supabase.auth.getUser();
+  if (!user.data.user) {
+    throw new Error('User not authenticated');
+  }
+
+  const { data: cvRecord, error: fetchError } = await supabase
+    .from('cv_records')
+    .select('storage_path')
+    .eq('id', cvId)
+    .eq('user_id', user.data.user.id)
+    .single();
+
+  if (fetchError && fetchError.code !== 'PGRST116') {
+    console.error('Error fetching CV storage path before delete:', fetchError);
+    throw fetchError;
+  }
+
+  const { error } = await supabase
+    .from('cv_records')
+    .delete()
+    .eq('id', cvId)
+    .eq('user_id', user.data.user.id);
+
+  if (error) {
+    console.error('Error deleting CV document:', error);
+    throw error;
+  }
+
+  if (cvRecord?.storage_path) {
+    const { error: removeError } = await supabase.storage
+      .from(CV_BUCKET)
+      .remove([cvRecord.storage_path]);
+
+    if (removeError) {
+      console.warn('CV record deleted but failed to remove storage object:', removeError);
+    }
+  }
 };
 
 export const generateCvDocument = async (payload: CvGenerationPayload): Promise<CvGenerationResult> => {
-  await delay(300);
+  const user = await supabase.auth.getUser();
+  if (!user.data.user) {
+    throw new Error('User not authenticated');
+  }
+
+  await ensureCvQuota(user.data.user.id);
+
   const draft = buildDraftFromGenerationPayload(payload);
-  const dataUrl = await toDataUrlFromText(draft).catch(() => null);
   const stats = buildStats(draft, {
     jobTarget: payload.targetRole,
     customKeywords: payload.skills
   });
+  const fileName = `${payload.fullName.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}.txt`;
+  const storagePath = buildStoragePath(user.data.user.id, fileName);
+
+  const fileBlob = new Blob([draft], { type: 'text/plain' });
+
+  const { error: uploadError } = await supabase.storage
+    .from(CV_BUCKET)
+    .upload(storagePath, fileBlob, {
+      cacheControl: '3600',
+      contentType: 'text/plain',
+      upsert: false
+    });
+
+  if (uploadError) {
+    console.error('Error uploading generated CV to storage:', uploadError);
+    throw uploadError;
+  }
+
+  const { data, error } = await supabase
+    .from('cv_records')
+    .insert([{
+      user_id: user.data.user.id,
+      title: `${payload.fullName} - ${payload.targetRole}`,
+      file_name: fileName,
+      file_size: draft.length,
+      mime_type: 'text/plain',
+      text_content: draft,
+      stats,
+      job_target: payload.targetRole,
+      generated: true,
+      storage_path: storagePath
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error generating CV document:', error);
+    await supabase.storage
+      .from(CV_BUCKET)
+      .remove([storagePath])
+      .catch((removeError) => console.warn('Failed to clean up generated CV after DB error:', removeError));
+    throw error;
+  }
+
+  const downloadUrl = data.storage_path ? await createSignedDownloadUrl(data.storage_path) : null;
+
   const record: CvDocument = {
-    id: createId(),
-    title: `${payload.fullName} - ${payload.targetRole}`,
-    fileName: `${payload.fullName.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}.txt`,
-    fileSize: draft.length,
-    mimeType: 'text/plain',
-    uploadedAt: new Date().toISOString(),
-    dataUrl,
-    textContent: draft,
-    stats,
-    jobTarget: payload.targetRole,
-    generated: true
+    id: data.id,
+    userId: data.user_id,
+    title: data.title,
+    fileName: data.file_name,
+    fileSize: data.file_size,
+    mimeType: data.mime_type,
+    uploadedAt: data.uploaded_at,
+    dataUrl: null,
+    storagePath: data.storage_path || undefined,
+    downloadUrl,
+    textContent: data.text_content,
+    stats: data.stats,
+    jobTarget: data.job_target || undefined,
+    jobDescription: data.job_description || undefined,
+    generated: data.generated
   };
 
-  upsertRecord(record);
   return { record, draft };
 };
 
 export const resetCvDocuments = async (): Promise<void> => {
-  await delay(50);
-  persistRecords([]);
+  const user = await supabase.auth.getUser();
+  if (!user.data.user) {
+    throw new Error('User not authenticated');
+  }
+
+  const { data: records, error: listError } = await supabase
+    .from('cv_records')
+    .select('storage_path')
+    .eq('user_id', user.data.user.id);
+
+  if (listError) {
+    console.error('Error fetching CV records prior to reset:', listError);
+    throw listError;
+  }
+
+  const storagePaths =
+    records
+      ?.map((item) => item.storage_path)
+      .filter((path): path is string => Boolean(path)) ?? [];
+
+  const { error } = await supabase
+    .from('cv_records')
+    .delete()
+    .eq('user_id', user.data.user.id);
+
+  if (error) {
+    console.error('Error resetting CV documents:', error);
+    throw error;
+  }
+
+  if (storagePaths.length > 0) {
+    const { error: removeError } = await supabase.storage
+      .from(CV_BUCKET)
+      .remove(storagePaths);
+
+    if (removeError) {
+      console.warn('Failed to remove some CV storage objects during reset:', removeError);
+    }
+  }
 };

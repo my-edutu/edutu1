@@ -2,10 +2,16 @@ import React, { useMemo, useState } from 'react';
 import { ArrowLeft, HelpCircle, MessageCircle, Mail, Phone, Book, Search, ChevronDown, ChevronRight, SendHorizonal, X } from 'lucide-react';
 import Button from './ui/Button';
 import Card from './ui/Card';
+import Input from './ui/Input';
+import Textarea from './ui/Textarea';
+import Select from './ui/Select';
 import { useDarkMode } from '../hooks/useDarkMode';
+import type { AppUser } from '../types/user';
+import { createSupportTicket } from '../services/supportTickets';
 
 interface HelpScreenProps {
   onBack: () => void;
+  user: AppUser | null;
 }
 
 type ChatMessage = {
@@ -22,7 +28,7 @@ const INITIAL_CHAT: ChatMessage[] = [
   }
 ];
 
-const HelpScreen: React.FC<HelpScreenProps> = ({ onBack }) => {
+const HelpScreen: React.FC<HelpScreenProps> = ({ onBack, user }) => {
   const { isDarkMode } = useDarkMode();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedFaq, setExpandedFaq] = useState<string | null>(null);
@@ -30,6 +36,12 @@ const HelpScreen: React.FC<HelpScreenProps> = ({ onBack }) => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(INITIAL_CHAT);
   const [chatInput, setChatInput] = useState('');
+  const [ticketSubject, setTicketSubject] = useState('');
+  const [ticketCategory, setTicketCategory] = useState('General');
+  const [ticketMessage, setTicketMessage] = useState('');
+  const [ticketSubmitting, setTicketSubmitting] = useState(false);
+  const [ticketFeedback, setTicketFeedback] = useState<string | null>(null);
+  const [ticketFeedbackTone, setTicketFeedbackTone] = useState<'success' | 'error'>('success');
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -79,6 +91,54 @@ const HelpScreen: React.FC<HelpScreenProps> = ({ onBack }) => {
     }, 1200);
   };
 
+  const resetTicketForm = () => {
+    setTicketSubject('');
+    setTicketCategory('General');
+    setTicketMessage('');
+  };
+
+  const handleSubmitTicket: React.FormEventHandler<HTMLFormElement> = async (event) => {
+    event.preventDefault();
+    if (ticketSubmitting) {
+      return;
+    }
+
+    if (!user) {
+      setTicketFeedbackTone('error');
+      setTicketFeedback('Please sign in to submit a support ticket.');
+      return;
+    }
+
+    if (!ticketSubject.trim() || !ticketMessage.trim()) {
+      setTicketFeedbackTone('error');
+      setTicketFeedback('Add a subject and describe the issue so we can help.');
+      return;
+    }
+
+    setTicketSubmitting(true);
+    setTicketFeedback(null);
+
+    try {
+      await createSupportTicket({
+        userId: user.id,
+        userEmail: user.email,
+        subject: ticketSubject,
+        category: ticketCategory,
+        message: ticketMessage
+      });
+      resetTicketForm();
+      setTicketFeedbackTone('success');
+      setTicketFeedback('Support ticket submitted. Our team will respond shortly.');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unable to submit your ticket. Please try again.';
+      setTicketFeedbackTone('error');
+      setTicketFeedback(errorMessage);
+    } finally {
+      setTicketSubmitting(false);
+      setTimeout(() => setTicketFeedback(null), 6000);
+    }
+  };
+
   const triggerEmail = () => {
     if (typeof window !== 'undefined') {
       window.location.href = 'mailto:support@edutu.com?subject=Support%20request%20from%20app';
@@ -125,6 +185,11 @@ const HelpScreen: React.FC<HelpScreenProps> = ({ onBack }) => {
       handler: triggerCall
     }
   ] as const;
+
+  const ticketCategories = useMemo(
+    () => ['General', 'Billing', 'Technical', 'Community'],
+    []
+  );
 
   const faqItems = [
     {
@@ -276,6 +341,75 @@ const HelpScreen: React.FC<HelpScreenProps> = ({ onBack }) => {
               className="w-full pl-12 pr-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
             />
           </div>
+        </Card>
+
+        <Card className="dark:bg-gray-800 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">Submit a support ticket</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Send us a detailed message and the Edutu team will follow up by email.
+          </p>
+          {!user && (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+              Sign in to your account so we can connect your request to your profile.
+            </div>
+          )}
+          <form onSubmit={handleSubmitTicket} className="mt-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Subject
+              </label>
+              <Input
+                value={ticketSubject}
+                onChange={(event) => setTicketSubject(event.target.value)}
+                placeholder="Brief summary of the issue"
+                disabled={ticketSubmitting || !user}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Category
+              </label>
+              <Select
+                value={ticketCategory}
+                onChange={(event) => setTicketCategory(event.target.value)}
+                disabled={ticketSubmitting || !user}
+              >
+                {ticketCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                How can we help?
+              </label>
+              <Textarea
+                rows={5}
+                value={ticketMessage}
+                onChange={(event) => setTicketMessage(event.target.value)}
+                placeholder="Describe what you need help with. Include relevant deadlines or links."
+                disabled={ticketSubmitting || !user}
+              />
+            </div>
+            {ticketFeedback && (
+              <div
+                className={`rounded-2xl border px-4 py-3 text-sm ${
+                  ticketFeedbackTone === 'success'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border-amber-200 bg-amber-50 text-amber-700'
+                }`}
+              >
+                {ticketFeedback}
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button type="submit" disabled={ticketSubmitting || !user}>
+                {ticketSubmitting ? 'Submitting...' : 'Submit ticket'}
+              </Button>
+            </div>
+          </form>
         </Card>
 
         <Card className="dark:bg-gray-800 dark:border-gray-700">

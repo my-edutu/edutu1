@@ -18,7 +18,9 @@
 ## Notable Issues
 - Chat experience currently unusable because of the intentional error throw (see `src/components/ChatInterface.tsx:55`).
 - Firebase bootstrap comments in `src/firebase/firebase.ts` contain stray non-ASCII characters that may cause tooling friction.
+
 - Lint blockers need triage: unused imports (e.g. `src/components/Profile.tsx:5`), `prefer-const` violations (`src/components/Dashboard.tsx:568`), empty interface inheritance (`src/components/ui/Input.tsx:4`), and conditional hook usage (`src/pages/admin/community/index.tsx:47`) will all break CI once enforced.
+
 - Build size warning highlights the need for code-splitting or `manualChunks` tuning before production shipment.
 
 ## Potential Enhancements
