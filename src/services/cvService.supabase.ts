@@ -121,7 +121,7 @@ export interface CvGenerationResult {
 }
 
 const CV_BUCKET = 'cv-files';
-const MAX_CV_PER_USER = 3;
+export const MAX_CV_PER_USER = 3;
 const DEFAULT_SIGNED_URL_TTL = 60;
 
 const sanitizeFileName = (value: string): string => {

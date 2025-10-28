@@ -861,6 +861,19 @@ create policy "Users manage own cv records"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+create policy "Admins view cv records"
+  on public.cv_records
+  for select
+  using (
+    auth.uid() = user_id
+    or exists (
+      select 1
+      from public.profiles p
+      where p.user_id = auth.uid()
+        and coalesce(p.preferences->>'role', '') = 'admin'
+    )
+  );
+
 -- ------------------------------------------------------------------
 -- CV storage bucket & policies
 -- ------------------------------------------------------------------

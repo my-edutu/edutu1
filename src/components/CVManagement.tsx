@@ -357,37 +357,29 @@ const CVManagement: React.FC<CVManagementProps> = ({ onBack }) => {
   };
 
   const handleDownload = async (record: CvDocument) => {
-    let href: string | null = null;
-
     try {
-      href = await getCvDownloadUrl(record.id);
-    } catch (error) {
-      console.error("Unable to generate signed download URL. Falling back to local data.", error);
-      if (record.dataUrl) {
-        href = record.dataUrl;
-      } else if (record.textContent) {
-        href = URL.createObjectURL(new Blob([record.textContent], { type: record.mimeType || "text/plain" }));
+      const href = await getCvDownloadUrl(record.id);
+      if (!href) {
+        throw new Error("Missing download URL");
       }
+
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.rel = "noopener";
+      anchor.download = record.fileName || `${record.title}.txt`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+
+      if (href.startsWith("blob:")) {
+        setTimeout(() => URL.revokeObjectURL(href), 3000);
+      }
+
+      setMessage({ type: "success", message: "Download started." });
+    } catch (error) {
+      console.error("Unable to generate CV download URL.", error);
+      setMessage({ type: "error", message: "Unable to start download. Please try again in a moment." });
     }
-
-    if (!href) {
-      setMessage({ type: "error", message: "Download unavailable. Try again later." });
-      return;
-    }
-
-    const anchor = document.createElement("a");
-    anchor.href = href;
-    anchor.rel = "noopener";
-    anchor.download = record.fileName || `${record.title}.txt`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-
-    if (href.startsWith("blob:")) {
-      setTimeout(() => URL.revokeObjectURL(href as string), 3000);
-    }
-
-    setMessage({ type: "success", message: "Download started." });
   };
 
   const handleGenerate = async (event?: FormEvent) => {
