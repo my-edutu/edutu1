@@ -30,7 +30,7 @@ import type { AppUser } from './types/user';
 export type Screen = 'landing' | 'auth' | 'chat' | 'dashboard' | 'all-goals' | 'profile' | 'opportunity-detail' | 'all-opportunities' | 'roadmap' | 'opportunity-roadmap' | 'settings' | 'profile-edit' | 'notifications' | 'privacy' | 'help' | 'cv-management' | 'add-goal' | 'community-marketplace' | 'showcase';
 
 export function App() {
-  const [currentScreen, setCurrentScreen] = useState<Screen>('landing');
+  const [currentScreen, setCurrentScreen] = useState<Screen>('showcase');
   const [user, setUser] = useState<AppUser | null>(null);
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
