@@ -150,8 +150,8 @@ export default {
           '50%': { transform: 'translateY(-4px)' },
         },
         pulseGlow: {
-          '0%, 100%': { 'box-shadow': '0 0 0 0 rgba(99, 102, 241, 0.35)' },
-          '50%': { 'box-shadow': '0 0 0 14px rgba(99, 102, 241, 0)' },
+          '0%, 100%': { 'box-shadow': '0 0 0 0 rgba(20, 184, 166, 0.4)' },
+          '50%': { 'box-shadow': '0 0 0 16px rgba(20, 184, 166, 0)' },
         },
         spin: {
           to: { transform: 'rotate(360deg)' },

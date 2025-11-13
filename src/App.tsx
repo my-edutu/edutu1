@@ -19,6 +19,7 @@ import AddGoalScreen from './components/AddGoalScreen';
 import CommunityMarketplace from './components/CommunityMarketplace';
 import IntroductionPopup from './components/IntroductionPopup';
 import AllGoals from './components/AllGoals';
+import ComponentShowcase from './pages/ComponentShowcase';
 import { useDarkMode } from './hooks/useDarkMode';
 import { Goal, useGoals } from './hooks/useGoals';
 import { authService, getProfileFromUser } from './lib/auth';
@@ -26,10 +27,10 @@ import { useAnalytics } from './hooks/useAnalytics';
 import type { Opportunity } from './types/opportunity';
 import type { AppUser } from './types/user';
 
-export type Screen = 'landing' | 'auth' | 'chat' | 'dashboard' | 'all-goals' | 'profile' | 'opportunity-detail' | 'all-opportunities' | 'roadmap' | 'opportunity-roadmap' | 'settings' | 'profile-edit' | 'notifications' | 'privacy' | 'help' | 'cv-management' | 'add-goal' | 'community-marketplace';
+export type Screen = 'landing' | 'auth' | 'chat' | 'dashboard' | 'all-goals' | 'profile' | 'opportunity-detail' | 'all-opportunities' | 'roadmap' | 'opportunity-roadmap' | 'settings' | 'profile-edit' | 'notifications' | 'privacy' | 'help' | 'cv-management' | 'add-goal' | 'community-marketplace' | 'showcase';
 
 export function App() {
-  const [currentScreen, setCurrentScreen] = useState<Screen>('landing');
+  const [currentScreen, setCurrentScreen] = useState<Screen>('showcase');
   const [user, setUser] = useState<AppUser | null>(null);
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
@@ -198,6 +199,8 @@ export function App() {
 
   const renderScreen = () => {
     switch (currentScreen) {
+      case 'showcase':
+        return <ComponentShowcase />;
       case 'landing':
         return <LandingPage onGetStarted={() => handleGetStarted()} />;
       case 'auth':
